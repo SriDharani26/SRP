@@ -4,7 +4,7 @@ import ResourcesUpdation from "./pages/ResourceUpdation"
 import Alerts from "./pages/Alerts";
 import AmbulanceData from "./pages/AmbulanceData";
 import Topbar from "./components/Topbar";
-import Map from "./pages/Map";
+import Resource from "./pages/Resource";
 
 function App() {
   const [activePage, setActivePage] = useState("resources"); 
@@ -37,8 +37,8 @@ function App() {
     case "alerts":
       PageContent = <Alerts />; 
       break;
-    case "map":
-      PageContent = <Map />;
+    case "resource":
+      PageContent = <Resource />;
       break;
     default:
       PageContent = <ResourcesUpdation />;

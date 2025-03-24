@@ -25,7 +25,7 @@ function Sidebar({ setActivePage, activePage }) {
           className={`flex items-center p-4 cursor-pointer hover:bg-blue-700 ${activePage === "resources" ? "bg-blue-700" : ""}`}
         >
           <FaHospital className="text-xl" />
-          {isExpanded && <span className="ml-3">Resources Updation</span>}
+          {isExpanded && <span className="ml-3">Alerts</span>}
         </li>
         <li
           onClick={() => setActivePage("ambulance")}
@@ -37,11 +37,11 @@ function Sidebar({ setActivePage, activePage }) {
         </li>
 
         <li
-          onClick={() => setActivePage("map")}
+          onClick={() => setActivePage("resource")}
           className={`flex items-center p-4 cursor-pointer hover:bg-blue-700 ${activePage === "ambulance" ? "bg-blue-700" : ""}`}
         >
           <FaMap className="text-xl" />
-          {isExpanded && <span className="ml-3">Map data</span>}
+          {isExpanded && <span className="ml-3">Resource Updation</span>}
         </li>
 
       </ul>
