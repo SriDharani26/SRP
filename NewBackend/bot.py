@@ -14,8 +14,10 @@ MONGO_URI = os.getenv("MONGO_URI")
 
 # Set up MongoDB connection
 client = MongoClient(MONGO_URI)
-db = client["Emergency"]
-reports_collection = db["Reports"]
+
+db = client['Emergency'] 
+reports_collection = db['Records']
+
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)
