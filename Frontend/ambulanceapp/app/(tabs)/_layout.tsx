@@ -28,10 +28,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="map"
+        name="hoschoose"
         options={{
-          title: 'Map',
-          tabBarIcon: ({ color }) => <MaterialIcons name="map" size={28} color={color} />,
+          title: 'Hospitals',
+          tabBarIcon: ({ color }) => <MaterialIcons name="local-hospital" size={28} color={color} />,
+         
         }}
       />
       <Tabs.Screen
