@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "../ambulanceapp/app/(tabs)/_layout.tsx", "../ambulanceapp/components/PatientConditionForm.tsx", "../ambulanceapp/components/UploadPhoto.tsx", "../ambulanceapp/components/UploadVoiceNote.tsx"  ]
 }
