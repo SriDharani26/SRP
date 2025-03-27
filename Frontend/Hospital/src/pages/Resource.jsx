@@ -1,33 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-
-const initialChartData = [
-  { resource: "ICU Beds", capacity: 100, occupied: 80 },
-  { resource: "Non-ICU Beds", capacity: 200, occupied: 150 },
-  { resource: "Doctors", capacity: 50, occupied: 40 },
-  { resource: "Nurses", capacity: 100, occupied: 90 },
-  { resource: "Ventilators", capacity: 30, occupied: 25 },
-  { resource: "Ambulances", capacity: 20, occupied: 15 },
-  { resource: "Oxygen Cylinders", capacity: 150, occupied: 120 },
-  { resource: "PPE Kits", capacity: 500, occupied: 450 },
-  { resource: "Medicines", capacity: 1000, occupied: 800 },
-  { resource: "Isolation Wards", capacity: 50, occupied: 45 },
-];
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Resource() {
   const [resources, setResources] = useState({
-    icuBeds: '',
-    nonIcuBeds: '',
-    doctors: '',
-    nurses: '',
-    ventilators: '',
-    ambulances: '',
-    oxygenCylinders: '',
-    ppeKits: '',
-    medicines: '',
-    isolationWards: ''
+    "ICU Beds": '',
+    "Non-ICU Beds": '',
+    "Doctors": '',
+    "Nurses": '',
+    "Ventilators": '',
+    "Ambulances": '',
+    "Oxygen Cylinders": '',
+    "PPE Kits": '',
+    "Medicines": '',
+    "Isolation Wards": ''
   });
+
+  const [chartData, setChartData] = useState([]);
+
+  // Fetch resource data from the backend
+  useEffect(() => {
+    fetch('http://127.0.0.1:5000/api/resources') // Ensure the correct backend URL
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setChartData(data);
+      })
+      .catch(error => console.error("Error fetching resources:", error));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,55 +43,73 @@ export default function Resource() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Handle form submission, e.g., send data to the server
-    console.log('Resource availability:', resources);
-  };
 
-  const chartData = initialChartData.map(data => ({
-    ...data,
-    occupied: resources[data.resource.toLowerCase().replace(/ /g, '')] || data.occupied,
-    available: data.capacity - (resources[data.resource.toLowerCase().replace(/ /g, '')] || data.occupied)
-  }));
+    // Send updated resource data to the backend
+    fetch('http://127.0.0.1:5000/api/resources/update', { // Ensure the correct backend URL
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(resources),
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log(data.message);
+
+      // Clear the form by resetting the `resources` state
+      setResources({
+        "ICU Beds": '',
+        "Non-ICU Beds": '',
+        "Doctors": '',
+        "Nurses": '',
+        "Ventilators": '',
+        "Ambulances": '',
+        "Oxygen Cylinders": '',
+        "PPE Kits": '',
+        "Medicines": '',
+        "Isolation Wards": ''
+      });
+      
+      alert("Resources updated successfully!");
+
+        // Refetch the updated chart data
+        fetch('http://127.0.0.1:5000/api/resources')
+          .then(response => response.json())
+          .then(data => {
+            setChartData(data);
+          });
+      })
+      .catch(error => console.error("Error updating resources:", error));
+  };
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md max-w-screen mx-auto">
       <h1 className="text-2xl font-bold text-blue-700 mb-6 text-center">Hospital Resource Availability</h1>
       <div className="flex flex-wrap gap-6">
         <div className="flex-1">
-          <Card>
+        <Card>
             <CardHeader>
               <CardTitle>Hospital Availability</CardTitle>
-              <CardDescription>As of 2025</CardDescription>
             </CardHeader>
             <CardContent>
               <BarChart width={window.innerWidth / 2 - 50} height={500} data={chartData}>
                 <CartesianGrid stroke="none" />
-                <XAxis
-                  dataKey="resource"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                />
+                <XAxis dataKey="resource" tickLine={false} tickMargin={10} axisLine={false} />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar
-                  dataKey="occupied"
-                  stackId="a"
-                  fill="#82ca9d"
-                  radius={[0, 0, 4, 4]}
-                />
-                <Bar
-                  dataKey="available"
-                  stackId="a"
-                  fill="#8884d8"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="occupied" stackId="a" fill="#82ca9d" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="capacity" stackId="a" fill="#8884d8" radius={[4, 4, 0, 0]} />
               </BarChart>
             </CardContent>
           </Card>
         </div>
-        <div className="flex-1 ">
+        <div className="flex-1">
           <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[500px] grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
@@ -96,8 +118,8 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="icuBeds"
-                  value={resources.icuBeds}
+                  name="ICU Beds"
+                  value={resources["ICU Beds"]}
                   onChange={handleChange}
                   placeholder="Enter number of ICU beds"
                   className="border rounded p-2 w-full"
@@ -111,8 +133,8 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="nonIcuBeds"
-                  value={resources.nonIcuBeds}
+                  name="Non-ICU Beds"
+                  value={resources["Non-ICU Beds"]}
                   onChange={handleChange}
                   placeholder="Enter number of non-ICU beds"
                   className="border rounded p-2 w-full"
@@ -126,10 +148,10 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="doctors"
-                  value={resources.doctors}
+                  name="Doctors"
+                  value={resources.Doctors}
                   onChange={handleChange}
-                  placeholder="Enter number of doctors"
+                  placeholder="Enter number of Doctors"
                   className="border rounded p-2 w-full"
                 />
               </CardContent>
@@ -141,10 +163,10 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="nurses"
-                  value={resources.nurses}
+                  name="Nurses"
+                  value={resources.Nurses}
                   onChange={handleChange}
-                  placeholder="Enter number of nurses"
+                  placeholder="Enter number of Nurses"
                   className="border rounded p-2 w-full"
                 />
               </CardContent>
@@ -156,10 +178,10 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="ventilators"
-                  value={resources.ventilators}
+                  name="Ventilators"
+                  value={resources.Ventilators}
                   onChange={handleChange}
-                  placeholder="Enter number of ventilators"
+                  placeholder="Enter number of Ventilators"
                   className="border rounded p-2 w-full"
                 />
               </CardContent>
@@ -171,10 +193,10 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="ambulances"
-                  value={resources.ambulances}
+                  name="Ambulances"
+                  value={resources.Ambulances}
                   onChange={handleChange}
-                  placeholder="Enter number of ambulances"
+                  placeholder="Enter number of Ambulances"
                   className="border rounded p-2 w-full"
                 />
               </CardContent>
@@ -186,8 +208,8 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="oxygenCylinders"
-                  value={resources.oxygenCylinders}
+                  name="'Oxygen Cylinders'"
+                  value={resources["Oxygen Cylinders"]}
                   onChange={handleChange}
                   placeholder="Enter number of oxygen cylinders"
                   className="border rounded p-2 w-full"
@@ -201,8 +223,8 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="ppeKits"
-                  value={resources.ppeKits}
+                  name="'PPE Kits'"
+                  value={resources["PPE Kits"]}
                   onChange={handleChange}
                   placeholder="Enter number of PPE kits"
                   className="border rounded p-2 w-full"
@@ -216,10 +238,10 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="text"
-                  name="medicines"
-                  value={resources.medicines}
+                  name="Medicines"
+                  value={resources.Medicines}
                   onChange={handleChange}
-                  placeholder="Enter medicines"
+                  placeholder="Enter Medicines"
                   className="border rounded p-2 w-full"
                 />
               </CardContent>
@@ -231,8 +253,8 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="isolationWards"
-                  value={resources.isolationWards}
+                  name="Isolation Wards"
+                  value={resources["Isolation Wards"]}
                   onChange={handleChange}
                   placeholder="Enter number of isolation wards"
                   className="border rounded p-2 w-full"
@@ -240,11 +262,13 @@ export default function Resource() {
               </CardContent>
             </Card>
             
-          </form>
+          
           <div className="md:col-span-2">
               <button type="submit" className="w-full bg-blue-500 text-white py-2 px-4 rounded">Update Resources</button>
             </div>
+            </form>
         </div>
+        
       </div>
     </div>
   );
