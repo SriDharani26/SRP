@@ -20,13 +20,7 @@ function Sidebar({ setActivePage, activePage }) {
       </div>
 
       <ul className="mt-4">
-        <li
-          onClick={() => setActivePage("resources")}
-          className={`flex items-center p-4 cursor-pointer hover:bg-blue-700 ${activePage === "resources" ? "bg-blue-700" : ""}`}
-        >
-          <FaHospital className="text-xl" />
-          {isExpanded && <span className="ml-3">Alerts</span>}
-        </li>
+        
         <li
           onClick={() => setActivePage("ambulance")}
           className={`flex items-center p-4 cursor-pointer hover:bg-blue-700 ${activePage === "ambulance" ? "bg-blue-700" : ""}`}

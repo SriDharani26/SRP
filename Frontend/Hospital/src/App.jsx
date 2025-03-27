@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ResourcesUpdation from "./pages/ResourceUpdation"
-import Alerts from "./pages/Alerts";
+//import Alerts from "./pages/Alerts";
 import AmbulanceData from "./pages/AmbulanceData";
 import Topbar from "./components/Topbar";
 import Resource from "./pages/Resource";
@@ -29,19 +29,20 @@ function App() {
   let PageContent;
   switch (activePage) {
     case "resources":
-      PageContent = <ResourcesUpdation />;
+      PageContent = <Resource />;
       break;
     case "ambulance":
       PageContent = <AmbulanceData />;
       break;
     case "alerts":
-      PageContent = <Alerts />; 
+      //PageContent = <Alerts />; 
+      PageContent = <AmbulanceData />;
       break;
     case "resource":
       PageContent = <Resource />;
       break;
     default:
-      PageContent = <ResourcesUpdation />;
+      PageContent = <Resource />;
   }
 
   return (
