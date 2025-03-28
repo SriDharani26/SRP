@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+
+const hospitalId = "HOSP001" ;
+
 export default function Resource() {
   const [resources, setResources] = useState({
     "ICU Beds": '',
@@ -20,7 +23,7 @@ export default function Resource() {
 
   // Fetch resource data from the backend
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/resources') // Ensure the correct backend URL
+    fetch(`http://127.0.0.1:5000/api/resources?hospital_id=${hospitalId}`) // Ensure the correct backend URL
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -44,13 +47,19 @@ export default function Resource() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    
+    const payload = {
+      hospital_id:hospitalId,
+      resources : resources,
+    }
+
     // Send updated resource data to the backend
     fetch('http://127.0.0.1:5000/api/resources/update', { // Ensure the correct backend URL
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(resources),
+      body: JSON.stringify(payload),
     })
       .then(response => {
         if (!response.ok) {
@@ -78,7 +87,7 @@ export default function Resource() {
       alert("Resources updated successfully!");
 
         // Refetch the updated chart data
-        fetch('http://127.0.0.1:5000/api/resources')
+        fetch(`http://127.0.0.1:5000/api/resources?hospital_id=${hospitalId}`) // Ensure the correct backend URL
           .then(response => response.json())
           .then(data => {
             setChartData(data);
@@ -208,7 +217,7 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="'Oxygen Cylinders'"
+                  name="Oxygen Cylinders"
                   value={resources["Oxygen Cylinders"]}
                   onChange={handleChange}
                   placeholder="Enter number of oxygen cylinders"
@@ -223,7 +232,7 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="'PPE Kits'"
+                  name="PPE Kits"
                   value={resources["PPE Kits"]}
                   onChange={handleChange}
                   placeholder="Enter number of PPE kits"

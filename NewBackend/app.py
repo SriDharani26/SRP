@@ -30,8 +30,86 @@ def getAlert():
     return jsonify({"success": "Ambulance Alert Sent!"})
 
 
+decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
+@app.route('/api/resources/update', methods=['POST'])
+def update_resources():
+    try:
+        db = client['Hospital']
+        resources_collection = db['Resources']
+        data = request.json
+        print("Received data:", data)
+
+        # Validate input
+        if not data or "hospital_id" not in data:
+            return jsonify({"error": "hospital_id is required"}), 400
+
+        hospital_id = data["hospital_id"]
+        resources = data.get("resources", {})
+
+        if not resources:
+            return jsonify({"error": "No resources provided"}), 400
+
+        # Iterate through the fields and update the database
+        for resource, value in resources.items():
+            if value == '':
+                continue
+
+            try:
+                value = int(value)
+            except ValueError:
+                return jsonify({"error": f"Invalid value for {resource}. Must be a positive integer."}), 400
+
+            if value < 0:
+                return jsonify({"error": f"Invalid value for {resource}. Must be a positive integer."}), 400
+
+            # Determine whether to decrease `occupied` or `capacity`
+            if resource in decrease_capacity_resources:
+                # Decrease `capacity` for specific resources
+                resources_collection.update_one(
+                    {"hospital_id": hospital_id, "resource": resource},
+                    {"$set": {"capacity": value}},  # Update the capacity
+                    upsert=True  # Create the document if it doesn't exist
+                )
+            else:
+                # Decrease `occupied` for other resources and increase `capacity`
+                resources_collection.update_one(
+                    {"hospital_id": hospital_id, "resource": resource},
+                    {
+                        "$inc": {
+                            "occupied": -value,  # Decrease the occupied count
+                            "capacity": value    # Increase the capacity
+                        }
+                    },
+                    upsert=True  # Create the document if it doesn't exist
+                )
+
+        return jsonify({"message": f"Resources updated successfully for hospital_id {hospital_id}"}), 200
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/resources', methods=['GET'])
+def get_resources():
+    try:
+        db = client['Hospital']
+        resources_collection = db['Resources']
+
+        hospital_id = request.args.get('hospital_id')
+        if not hospital_id:
+            return jsonify({"error": "hospital_id is required"}), 400
+
+
+        resources = list(resources_collection.find({"hospital_id": hospital_id}, {"_id": 0}))  # Exclude the `_id` field
+        print("Fetched resources:", resources)  
+        return jsonify(resources), 200
+    except Exception as e:
+        print("Error:", e)  
+        return jsonify({"error": str(e)}), 500
+
+
 
 if __name__ == '__main__':
     
-    app.config['DEBUG'] = False
+    app.config['DEBUG'] = True
     app.run(host='0.0.0.0', port=5000)
