@@ -110,7 +110,8 @@ async def location(update: Update, context: CallbackContext):
             "user_id": user_id,
             "emergency_type": user_reports[user_id]["emergency"],
             "injured_count": user_reports[user_id]["injured"],
-            "location": {"latitude": latitude, "longitude": longitude}
+            "latitude": latitude,
+            "longitude": longitude
         }
 
         try:
