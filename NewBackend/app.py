@@ -37,13 +37,20 @@ def update_resources():
         db = client['Hospital']
         resources_collection = db['Resources']
         data = request.json
-        print("Received data:", data)  
+        print("Received data:", data)
 
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        # Validate input
+        if not data or "hospital_id" not in data:
+            return jsonify({"error": "hospital_id is required"}), 400
 
-       
-        for resource, value in data.items():
+        hospital_id = data["hospital_id"]
+        resources = data.get("resources", {})
+
+        if not resources:
+            return jsonify({"error": "No resources provided"}), 400
+
+        # Iterate through the fields and update the database
+        for resource, value in resources.items():
             if value == '':
                 continue
 
@@ -59,14 +66,14 @@ def update_resources():
             if resource in decrease_capacity_resources:
                 # Decrease `capacity` for specific resources
                 resources_collection.update_one(
-                    {"resource": resource},
-                    {"$set": {"capacity": value}},  # Decrease the capacity
+                    {"hospital_id": hospital_id, "resource": resource},
+                    {"$set": {"capacity": value}},  # Update the capacity
                     upsert=True  # Create the document if it doesn't exist
                 )
             else:
                 # Decrease `occupied` for other resources and increase `capacity`
                 resources_collection.update_one(
-                    {"resource": resource},
+                    {"hospital_id": hospital_id, "resource": resource},
                     {
                         "$inc": {
                             "occupied": -value,  # Decrease the occupied count
@@ -76,10 +83,10 @@ def update_resources():
                     upsert=True  # Create the document if it doesn't exist
                 )
 
-        return jsonify({"message": "Resources updated successfully"}), 200
+        return jsonify({"message": f"Resources updated successfully for hospital_id {hospital_id}"}), 200
 
     except Exception as e:
-        print("Error:", e)  
+        print("Error:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/resources', methods=['GET'])
@@ -87,7 +94,13 @@ def get_resources():
     try:
         db = client['Hospital']
         resources_collection = db['Resources']
-        resources = list(resources_collection.find({}, {"_id": 0}))  # Exclude the `_id` field
+
+        hospital_id = request.args.get('hospital_id')
+        if not hospital_id:
+            return jsonify({"error": "hospital_id is required"}), 400
+
+
+        resources = list(resources_collection.find({"hospital_id": hospital_id}, {"_id": 0}))  # Exclude the `_id` field
         print("Fetched resources:", resources)  
         return jsonify(resources), 200
     except Exception as e:
