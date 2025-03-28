@@ -208,7 +208,7 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="'Oxygen Cylinders'"
+                  name="Oxygen Cylinders"
                   value={resources["Oxygen Cylinders"]}
                   onChange={handleChange}
                   placeholder="Enter number of oxygen cylinders"
@@ -223,7 +223,7 @@ export default function Resource() {
               <CardContent>
                 <input
                   type="number"
-                  name="'PPE Kits'"
+                  name="PPE Kits"
                   value={resources["PPE Kits"]}
                   onChange={handleChange}
                   placeholder="Enter number of PPE kits"
