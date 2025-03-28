@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import {  ScrollView, Text, StyleSheet } from 'react-native';
 import { Button } from 'react-native-paper';
 import PatientConditionForm from '../../components/PatientConditionForm';
 import UploadPhoto from '../../components/UploadPhoto';
