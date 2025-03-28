@@ -116,7 +116,14 @@ async def location(update: Update, context: CallbackContext):
         try:
             result = reports_collection.insert_one(emergency_report)
             logger.info(f"✅ Data inserted: {result.inserted_id}")
-            await update.message.reply_text("✅ Emergency report submitted successfully!")
+            await update.message.reply_text(
+                "✅ Emergency report submitted successfully!\n"
+                "You can report another emergency by clicking the button below.",
+                reply_markup=persistent_keyboard  
+            )
+
+            user_state.pop(user_id, None)
+            user_reports.pop(user_id, None)
 
         except Exception as e:
             logger.error(f"❌ Error inserting data: {e}")
