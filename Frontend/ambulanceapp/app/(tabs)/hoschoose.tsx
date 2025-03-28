@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { Text, ScrollView, ActivityIndicator } from 'react-native';
 import { Card, Button } from 'react-native-paper';
 
 import db from '@/api/api';
