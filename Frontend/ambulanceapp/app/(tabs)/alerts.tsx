@@ -19,6 +19,7 @@ export default function AlertsPage() {
         const response = await db.get(`/ambulance_alert`);
         setNote(response.data);
       } catch (error) {
+        
         console.error("Error fetching data:", error);
       }
     };

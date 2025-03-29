@@ -84,14 +84,15 @@ def fetch_hospital_data():
     ))
     return hospitals
 
-@app.route('/nearest_hospital', methods=['POST'])  # Use POST since we are sending JSON data
+@app.route('/nearest_hospital', methods=['GET'])  
 def find_nearest_hospitals():
     try:
-        data = request.get_json()  # Correct way to parse incoming JSON
-        if not data or "Latitude" not in data or "Longitude" not in data:
-            return jsonify({"error": "Missing latitude or longitude"}), 400
+        latitude = float(request.args.get('latitude'))
+        longitude = float(request.args.get('longitude'))
+        if latitude is None or longitude is None:
+            return jsonify({"error": "Latitude and Longitude are required"}), 400
 
-        ambulance_location = (data["Latitude"], data["Longitude"])
+        ambulance_location = (latitude, longitude)
         print("Received ambulance location:", ambulance_location)
 
         hospitals = fetch_hospital_data()
