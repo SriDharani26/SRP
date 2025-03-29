@@ -3,8 +3,8 @@ from pymongo import MongoClient
 # MongoDB connection
 MONGO_URI = "mongodb://localhost:27017"  # Replace with your MongoDB URI
 client = MongoClient(MONGO_URI)
-db = client['GoldenPulse']
-resources_collection = db['Hospital_distribution']
+db = client['GoldenPulse']  # Replace with your database name
+resources_collection = db['']
 
 # Default data for resources
 default_resources = {

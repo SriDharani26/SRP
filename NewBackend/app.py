@@ -2,14 +2,12 @@ from flask import Flask,request,jsonify
 from flask_cors import CORS
 
 import os
-import logging
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
-import threading
 
 
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
 
 
 load_dotenv()
@@ -60,9 +58,49 @@ def decline_alert():
     ambulance_id = data.get("ambulance_id")
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
+
+def fetch_hospital_data():
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["GoldenPulse"]
+    hospital_collection = db["Hospital_distribution"]
+    
+    hospitals = list(hospital_collection.find(
+        {
+            "$or": [
+                {"resources.ICU Beds.capacity": {"$gt": 0}},
+                {"resources.Non-ICU Beds.capacity": {"$gt": 0}}
+            ]
+        },
+        {
+            "_id": 0,
+            "hospital_id": 1,
+            "hospital_name": 1,
+            "latitude": 1,
+            "longitude": 1,
+            "resources.ICU Beds": 1,
+            "resources.Non-ICU Beds": 1
+        }
+    ))
+    
+    return hospitals
+
 @app.route('/nearest_hospital', methods=['GET'])
-def nearest_hospital():
-    return jsonify({"hospital_name": "City General Hospital"}), 200
+def find_nearest_hospitals():
+    ambulance_location = request.json
+    hospitals = fetch_hospital_data()
+    
+    if not ambulance_location or not hospitals:
+        return []
+
+    hospital_locations = np.array([(hospital["latitude"], hospital["longitude"]) for hospital in hospitals])
+
+    knn = NearestNeighbors(n_neighbors=min(5, len(hospitals)), algorithm='ball_tree')
+    knn.fit(hospital_locations)
+
+    distances, indices = knn.kneighbors([ambulance_location])
+
+    nearest_hospitals = [hospitals[i] for i in indices[0]]
+    return nearest_hospitals
 
 
 decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
