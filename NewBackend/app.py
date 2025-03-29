@@ -103,12 +103,12 @@ def find_nearest_hospitals():
     return nearest_hospitals
 
 
-decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
+DECREASE_CAPACITY_RESOURCES = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
 @app.route('/api/resources/update', methods=['POST'])
 def update_resources():
     try:
-        db = client['Hospital']
-        resources_collection = db['Resources']
+        db = client["GoldenPulse"]
+        hospital_collection = db["Hospital_distribution"]
         data = request.json
         print("Received data:", data)
 
@@ -122,7 +122,13 @@ def update_resources():
         if not resources:
             return jsonify({"error": "No resources provided"}), 400
 
-        # Iterate through the fields and update the database
+        # Fetch the hospital document
+        hospital = hospital_collection.find_one({"hospital_id": hospital_id})
+        if not hospital:
+            return jsonify({"error": "Hospital not found"}), 404
+
+        # Iterate through the resources and update them
+        update_fields = {}
         for resource, value in resources.items():
             if value == '':
                 continue
@@ -136,25 +142,19 @@ def update_resources():
                 return jsonify({"error": f"Invalid value for {resource}. Must be a positive integer."}), 400
 
             # Determine whether to decrease `occupied` or `capacity`
-            if resource in decrease_capacity_resources:
-                # Decrease `capacity` for specific resources
-                resources_collection.update_one(
-                    {"hospital_id": hospital_id, "resource": resource},
-                    {"$set": {"capacity": value}},  # Update the capacity
-                    upsert=True  # Create the document if it doesn't exist
-                )
+            if resource in DECREASE_CAPACITY_RESOURCES:
+                # Decrease `capacity` for specified resources
+                update_fields[f"resources.{resource}.capacity"] = value
             else:
                 # Decrease `occupied` for other resources and increase `capacity`
-                resources_collection.update_one(
-                    {"hospital_id": hospital_id, "resource": resource},
-                    {
-                        "$inc": {
-                            "occupied": -value,  # Decrease the occupied count
-                            "capacity": value    # Increase the capacity
-                        }
-                    },
-                    upsert=True  # Create the document if it doesn't exist
-                )
+                update_fields[f"resources.{resource}.occupied"] = max(0, hospital["resources"].get(resource, {}).get("occupied", 0) - value)
+                update_fields[f"resources.{resource}.capacity"] = hospital["resources"].get(resource, {}).get("capacity", 0) + value
+
+        # Update the document
+        hospital_collection.update_one(
+            {"hospital_id": hospital_id},
+            {"$set": update_fields}
+        )
 
         return jsonify({"message": f"Resources updated successfully for hospital_id {hospital_id}"}), 200
 
@@ -162,9 +162,11 @@ def update_resources():
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/api/resources', methods=['GET'])
 def get_resources():
-    hospital_collection = db["Resources"]
+    db = client['GoldenPulse']
+    hospital_collection = db["Hospital_distribution"]
     try:
         hospital_id = request.args.get('hospital_id')
         if not hospital_id:
