@@ -22,9 +22,11 @@ default_resources = [
 
 # List of hospitals with unique hospital IDs
 hospitals = [
-    {"hospital_id": "HOSP001", "name": "City Hospital"},
-    {"hospital_id": "HOSP002", "name": "Green Valley Hospital"},
-    {"hospital_id": "HOSP003", "name": "Sunrise Medical Center"},
+    {"hospital_id": "HOSP001", "name": "City Hospital","Latitude":13.0204181,"Longitude":80.2058843},
+    {"hospital_id": "HOSP002", "name": "Green Valley Hospital","Latitude":13.0294519,"Longitude":80.2135628},
+    {"hospital_id": "HOSP003", "name": "Sunrise Medical Center","Latitude":13.0294519,"Longitude":80.2135628},
+    {"hospital_id": "HOSP004", "name": "Lakeside Hospital","Latitude":13.0162394,"Longitude":80.2112453},
+    {"hospital_id": "HOSP005", "name": "Mountain View Hospital","Latitude":13.0058417,"Longitude":80.2347054}
 ]
 
 # Clear the collection
@@ -35,10 +37,12 @@ print("Existing data cleared.")
 for hospital in hospitals:
     hospital_id = hospital["hospital_id"]
     hospital_name = hospital["name"]
+    latitude = hospital["Latitude"]
+    longitude = hospital["Longitude"]
 
     # Add hospital_id to each resource
     resources_with_hospital_id = [
-        {**resource, "hospital_id": hospital_id, "hospital_name": hospital_name}
+        {**resource, "hospital_id": hospital_id, "hospital_name": hospital_name,"latitude":latitude,"longitude":longitude}
         for resource in default_resources
     ]
 
