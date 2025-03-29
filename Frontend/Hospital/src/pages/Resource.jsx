@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-
-const hospitalId = "HOSP001" ;
+const hospitalId = "HOSP001";
 
 export default function Resource() {
   const [resources, setResources] = useState({
@@ -31,7 +30,18 @@ export default function Resource() {
         return response.json();
       })
       .then(data => {
-        setChartData(data);
+        if (data.resources) {
+          // Update resources state
+          setResources(data.resources);
+
+          // Format chart data
+          const formattedChartData = Object.entries(data.resources).map(([key, value]) => ({
+            resource: key,
+            capacity: value.capacity,
+            occupied: value.occupied,
+          }));
+          setChartData(formattedChartData);
+        }
       })
       .catch(error => console.error("Error fetching resources:", error));
   }, []);
@@ -46,13 +56,15 @@ export default function Resource() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    
+  
+    // Prepare the payload in the required format
     const payload = {
-      hospital_id:hospitalId,
-      resources : resources,
-    }
-
+      hospital_id: hospitalId,
+      resources: Object.fromEntries(
+        Object.entries(resources).map(([key, value]) => [key, parseInt(value, 10) || ''])
+      ),
+    };
+  
     // Send updated resource data to the backend
     fetch('http://127.0.0.1:5000/api/resources/update', { // Ensure the correct backend URL
       method: 'POST',
@@ -69,28 +81,35 @@ export default function Resource() {
       })
       .then(data => {
         console.log(data.message);
-
-      // Clear the form by resetting the `resources` state
-      setResources({
-        "ICU Beds": '',
-        "Non-ICU Beds": '',
-        "Doctors": '',
-        "Nurses": '',
-        "Ventilators": '',
-        "Ambulances": '',
-        "Oxygen Cylinders": '',
-        "PPE Kits": '',
-        "Medicines": '',
-        "Isolation Wards": ''
-      });
-      
-      alert("Resources updated successfully!");
-
+  
+        // Clear the form by resetting the `resources` state
+        setResources({
+          "ICU Beds": '',
+          "Non-ICU Beds": '',
+          "Doctors": '',
+          "Nurses": '',
+          "Ventilators": '',
+          "Ambulances": '',
+          "Oxygen Cylinders": '',
+          "PPE Kits": '',
+          "Medicines": '',
+          "Isolation Wards": ''
+        });
+  
+        alert("Resources updated successfully!");
+  
         // Refetch the updated chart data
         fetch(`http://127.0.0.1:5000/api/resources?hospital_id=${hospitalId}`) // Ensure the correct backend URL
           .then(response => response.json())
           .then(data => {
-            setChartData(data);
+            if (data.resources) {
+              const formattedChartData = Object.entries(data.resources).map(([key, value]) => ({
+                resource: key,
+                capacity: value.capacity,
+                occupied: value.occupied,
+              }));
+              setChartData(formattedChartData);
+            }
           });
       })
       .catch(error => console.error("Error updating resources:", error));
@@ -101,7 +120,7 @@ export default function Resource() {
       <h1 className="text-2xl font-bold text-blue-700 mb-6 text-center">Hospital Resource Availability</h1>
       <div className="flex flex-wrap gap-6">
         <div className="flex-1">
-        <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Hospital Availability</CardTitle>
             </CardHeader>
@@ -248,7 +267,7 @@ export default function Resource() {
                 <input
                   type="text"
                   name="Medicines"
-                  value={resources.Medicines}
+                  value={resources["Medicines"]}
                   onChange={handleChange}
                   placeholder="Enter Medicines"
                   className="border rounded p-2 w-full"
@@ -270,14 +289,11 @@ export default function Resource() {
                 />
               </CardContent>
             </Card>
-            
-          
-          <div className="md:col-span-2">
+            <div className="md:col-span-2">
               <button type="submit" className="w-full bg-blue-500 text-white py-2 px-4 rounded">Update Resources</button>
             </div>
-            </form>
+          </form>
         </div>
-        
       </div>
     </div>
   );
