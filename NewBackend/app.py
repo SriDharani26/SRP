@@ -48,7 +48,21 @@ def getAlert():
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
 
+@app.route('/request_accept', methods=['POST'])
+def accept_alert():
+    data = request.json
+    ambulance_id = data.get("ambulance_id")
+    return jsonify({"message": f"Ambulance {ambulance_id} accepted the alert"}), 200
 
+@app.route('/request_decline', methods=['POST'])
+def decline_alert():
+    data = request.json
+    ambulance_id = data.get("ambulance_id")
+    return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
+
+@app.route('/nearest_hospital', methods=['GET'])
+def nearest_hospital():
+    return jsonify({"hospital_name": "City General Hospital"}), 200
 
 
 decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
