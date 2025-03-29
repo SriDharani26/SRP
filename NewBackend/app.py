@@ -59,11 +59,12 @@ def decline_alert():
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
 
+
+
 def fetch_hospital_data():
-    client = MongoClient("mongodb://localhost:27017/")
+    
     db = client["GoldenPulse"]
     hospital_collection = db["Hospital_distribution"]
-    
     hospitals = list(hospital_collection.find(
         {
             "$or": [
@@ -81,26 +82,38 @@ def fetch_hospital_data():
             "resources.Non-ICU Beds": 1
         }
     ))
-    
     return hospitals
 
-@app.route('/nearest_hospital', methods=['GET'])
+@app.route('/nearest_hospital', methods=['POST'])  # Use POST since we are sending JSON data
 def find_nearest_hospitals():
-    ambulance_location = request.json
-    hospitals = fetch_hospital_data()
-    
-    if not ambulance_location or not hospitals:
-        return []
+    try:
+        data = request.get_json()  # Correct way to parse incoming JSON
+        if not data or "Latitude" not in data or "Longitude" not in data:
+            return jsonify({"error": "Missing latitude or longitude"}), 400
 
-    hospital_locations = np.array([(hospital["latitude"], hospital["longitude"]) for hospital in hospitals])
+        ambulance_location = (data["Latitude"], data["Longitude"])
+        print("Received ambulance location:", ambulance_location)
 
-    knn = NearestNeighbors(n_neighbors=min(5, len(hospitals)), algorithm='ball_tree')
-    knn.fit(hospital_locations)
+        hospitals = fetch_hospital_data()
+        if not hospitals:
+            return jsonify({"message": "No hospitals with available beds found"}), 404
 
-    distances, indices = knn.kneighbors([ambulance_location])
+        # Extract hospital locations
+        hospital_locations = np.array([(h["latitude"], h["longitude"]) for h in hospitals])
 
-    nearest_hospitals = [hospitals[i] for i in indices[0]]
-    return nearest_hospitals
+        # Use KNN to find the 5 nearest hospitals
+        knn = NearestNeighbors(n_neighbors=min(5, len(hospitals)), algorithm='ball_tree')
+        knn.fit(hospital_locations)
+
+        distances, indices = knn.kneighbors([ambulance_location])
+
+        nearest_hospitals = [hospitals[i] for i in indices[0]]
+
+        return jsonify({"nearest_hospitals": nearest_hospitals}), 200
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
