@@ -27,7 +27,35 @@ def home():
 
 @app.route('/ambulance_alert')
 def getAlert():
-    return jsonify({"success": "Ambulance Alert Sent!"})
+    try:
+        db = client['GoldenPulse']
+        accident_collection = db['Ambulance_alerts']
+        latest_accident = accident_collection.find_one({ "Ambulance ID":"A020"},{"_id": 0,"Accident Type":1,"Number of People Injured":1,"Latitude":1,"Longitude":1})  # Exclude the `_id` field
+        
+        print("Latest accident:", latest_accident) 
+        if latest_accident:
+            # Extract the required fields
+            accident_type = latest_accident.get("Accident Type")
+            num_people_injured = latest_accident.get("Number of People Injured")
+            latitude = latest_accident.get("Latitude")
+            longitude = latest_accident.get("Longitude")
+
+            # Return the data as JSON
+            return jsonify({
+                "Accident Type": accident_type,
+                "Number of People Injured": num_people_injured,
+                "Latitude": latitude,
+                "Longitude": longitude
+            }), 200
+        else:
+            # If no recent accidents found, return a 404 error
+            print("No recent accidents found.")
+        
+        return jsonify({"error": "No recent accidents found."}), 404
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
+
 
 
 decrease_capacity_resources = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
