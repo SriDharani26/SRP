@@ -112,20 +112,20 @@ def update_resources():
 
 @app.route('/api/resources', methods=['GET'])
 def get_resources():
+    hospital_collection = db["Resources"]
     try:
-        db = client['Hospital']
-        resources_collection = db['Resources']
-
         hospital_id = request.args.get('hospital_id')
         if not hospital_id:
             return jsonify({"error": "hospital_id is required"}), 400
 
+        hospital = hospital_collection.find_one({"hospital_id": hospital_id}, {"_id": 0})
 
-        resources = list(resources_collection.find({"hospital_id": hospital_id}, {"_id": 0}))  # Exclude the `_id` field
-        print("Fetched resources:", resources)  
-        return jsonify(resources), 200
+        if not hospital:
+            return jsonify({"error": "Hospital not found"}), 404
+
+        return jsonify(hospital), 200
+
     except Exception as e:
-        print("Error:", e)  
         return jsonify({"error": str(e)}), 500
 
 
