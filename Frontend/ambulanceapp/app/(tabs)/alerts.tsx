@@ -2,12 +2,16 @@ import React, { useState, useEffect } from "react";
 import { Text, ScrollView, View, Alert } from "react-native";
 import { Card, Button } from "react-native-paper";
 import axios from "axios";
+import { useRouter } from 'expo-router';
 
 import db from "@/api/api";
 
 export default function AlertsPage() {
   const [note, setNote] = useState(null);
-  const [status, setStatus] = useState("pending"); // "pending", "accepted", "declined"
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [status, setStatus] = useState("pending"); 
+  const router = useRouter();
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -26,7 +30,7 @@ export default function AlertsPage() {
   const handleAccept = async () => {
     try {
       await db.post(`request_accept`, {
-        ambulance_id: "A020",
+        ambulance_id: "A016",
       });
       setStatus("accepted");
     } catch (error) {
@@ -88,9 +92,29 @@ export default function AlertsPage() {
                 <Text>Number of People Injured: {accident["Number of People Injured"]}</Text>
               </Card.Content>
               <Card.Actions>
-                <Button mode="contained" buttonColor="#1E3A8A" textColor="white" onPress={handleAccept}>
-                  Accept
-                </Button>
+                
+              <Button
+                mode="contained"
+                buttonColor="green"
+                textColor="white"
+                onPress={() => {
+                  setStatus("accepted");
+                  setLatitude(accident.Latitude);
+                  setLongitude(accident.Longitude); // Ensure status updates correctly
+                  router.push({
+                    pathname: "/hoschoose",
+                    params: {
+                      ambulancelatlong: JSON.stringify({
+                        latitude: accident.Latitude,
+                        longitude: accident.Longitude,
+                      }),
+                    },
+                  });
+                }}
+                
+              >
+               Accept
+              </Button>
                 <Button mode="outlined" textColor="#1E3A8A" onPress={handleDecline}>
                   Decline
                 </Button>
@@ -101,9 +125,24 @@ export default function AlertsPage() {
       ) : null}
 
       {status === "accepted" && (
-        <Button mode="contained" buttonColor="green" textColor="white" onPress={fetchNearestHospital}>
-          Fetch Nearest Hospital
-        </Button>
+        <Button
+        mode="contained"
+        buttonColor="green"
+        textColor="white"
+        onPress={() =>
+          router.push({
+            pathname: "/hoschoose",
+            params: {
+              ambulancelatlong: JSON.stringify({
+                latitude: latitude,
+                longitude:longitude,
+              }),
+            },
+          })
+        }
+      >
+        Fetch Nearest Hospital
+      </Button>
       )}
 
       {status === "declined" && (
