@@ -38,8 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="report"
         options={{
-          title: 'Report',
-          tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={28} color={color} />,
+          href:null,
         }}
       />
       
