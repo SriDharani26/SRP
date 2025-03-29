@@ -30,30 +30,24 @@ def getAlert():
     try:
         db = client['GoldenPulse']
         accident_collection = db['Ambulance_alerts']
-        latest_accident = accident_collection.find_one({ "Ambulance ID":"A020"},{"_id": 0,"Accident Type":1,"Number of People Injured":1,"Latitude":1,"Longitude":1})  # Exclude the `_id` field
         
-        print("Latest accident:", latest_accident) 
-        if latest_accident:
-            # Extract the required fields
-            accident_type = latest_accident.get("Accident Type")
-            num_people_injured = latest_accident.get("Number of People Injured")
-            latitude = latest_accident.get("Latitude")
-            longitude = latest_accident.get("Longitude")
+        # Fetch all accidents related to the given Ambulance ID
+        accidents = list(accident_collection.find(
+            {"Ambulance ID": "A016"}, 
+            {"_id": 0, "Accident Type": 1, "Number of People Injured": 1, "Latitude": 1, "Longitude": 1}
+        ))
+        
+        print("Accidents:", accidents)
 
-            # Return the data as JSON
-            return jsonify({
-                "Accident Type": accident_type,
-                "Number of People Injured": num_people_injured,
-                "Latitude": latitude,
-                "Longitude": longitude
-            }), 200
+        if accidents:
+            return jsonify({"Accidents": accidents}), 200
         else:
-            # If no recent accidents found, return a 404 error
-            return jsonify({"error": "No recent accidents found."}), 404
-        
+            return jsonify({"Accidents": "No recent accidents found."}), 200
+
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
+
 
 
 
