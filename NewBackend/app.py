@@ -139,7 +139,7 @@ def update_resources():
         hospital = hospital_collection.find_one({"hospital_id": hospital_id})
         if not hospital:
             return jsonify({"error": "Hospital not found"}), 404
-
+        print(resources.items())
         # Iterate through the resources and update them
         update_fields = {}
         for resource, value in resources.items():
@@ -148,6 +148,7 @@ def update_resources():
 
             try:
                 value = int(value)
+
             except ValueError:
                 return jsonify({"error": f"Invalid value for {resource}. Must be a positive integer."}), 400
 
