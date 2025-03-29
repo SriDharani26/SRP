@@ -49,9 +49,8 @@ def getAlert():
             }), 200
         else:
             # If no recent accidents found, return a 404 error
-            print("No recent accidents found.")
+            return jsonify({"error": "No recent accidents found."}), 404
         
-        return jsonify({"error": "No recent accidents found."}), 404
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
