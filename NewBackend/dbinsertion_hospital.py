@@ -4,7 +4,7 @@ from pymongo import MongoClient
 MONGO_URI = "mongodb://localhost:27017"  # Replace with your MongoDB URI
 client = MongoClient(MONGO_URI)
 db = client['GoldenPulse']  # Replace with your database name
-resources_collection = db['']
+resources_collection = db['Hospital_distribution']  # Replace with your collection name
 
 # Default data for resources
 default_resources = {
