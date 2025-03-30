@@ -241,6 +241,7 @@ def opting_generalbeds():
     return jsonify({"message": "got that"}), 200
 
 
+<<<<<<< Updated upstream
 @socketio.on('submit_report')
 def handle_submit_report(data):
     """
@@ -286,6 +287,11 @@ def handle_submit_report(data):
     except Exception as e:
         print("Error in handle_submit_report:", e)
         emit('error', {'message': str(e)})
+=======
+@app.route('/submit_report')
+def submitting_report():
+    return jsonify({"message": "got that"}), 200
+>>>>>>> Stashed changes
 
 def fetch_hospital_data():
     
