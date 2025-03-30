@@ -76,6 +76,48 @@ export default function HospitalAvailability() {
     }
   };
 
+  const requestICU = async (hospitalId: any) => {
+    try {
+      const ambulanceId = "A0237"; 
+  
+      const response = await db.post(`/opting_icu`, {
+        ambulance_id: ambulanceId,
+        hospital_id: hospitalId,
+      });
+  
+      if (response.status === 200) {
+        Alert.alert("Request Sent", `Ambulance requested for ICU at hospital ${hospitalId}`);
+        fetchNearestHospital();
+      } else {
+        Alert.alert("Error", "Failed to send the ICU request.");
+      }
+    } catch (error) {
+      console.error("Error requesting ICU:", error);
+      Alert.alert("Error", "Could not send the ICU request.");
+    }
+  };
+  
+  const requestGeneral = async (hospitalId: any) => {
+    try {
+      const ambulanceId = "A0237"; 
+  
+      const response = await db.post(`/opting_general`, {
+        ambulance_id: ambulanceId,
+        hospital_id: hospitalId,
+      });
+  
+      if (response.status === 200) {
+        Alert.alert("Request Sent", `Ambulance requested for General Beds at hospital ${hospitalId}`);
+        fetchNearestHospital();
+      } else {
+        Alert.alert("Error", "Failed to send the General Bed request.");
+      }
+    } catch (error) {
+      console.error("Error requesting General Beds:", error);
+      Alert.alert("Error", "Could not send the General Bed request.");
+    }
+  };
+
   useEffect(() => {
     if (!driverLocation || nearesthospital.length === 0) return;
 
@@ -160,25 +202,52 @@ export default function HospitalAvailability() {
               <Text>Distance: {((hospital.distance ?? 0) / 1000).toFixed(2)} km</Text>
               <Text>Estimated Time: {hospital.time ? `${Math.ceil(hospital.time / 60)} min` : 'N/A'}</Text>
             </Card.Content>
+          
             <Card.Actions>
               <Button
                 mode="contained"
                 buttonColor="#1E3A8A"
                 textColor="white"
-                onPress={() => Alert.alert("ICU Beds", `ICU Beds Available: ${hospital.resources["ICU Beds"]?.capacity ?? 'N/A'}`)}
+                onPress={async () => {
+                  await requestICU(hospital.hospital_id); // Wait for API request to complete
+                  router.push({
+                    pathname: '/report',
+                    params: {
+                      hospitalLatLong: JSON.stringify({
+                        lat: hospital.latitude,
+                        long: hospital.longitude,
+                        hospid: hospital.hospital_id,
+                      }),
+                    },
+                  });
+                }}
               >
-                ICU Beds: {hospital.resources["ICU Beds"]?.capacity ?? 'N/A'}
+                ICU Beds: {hospital.resources["ICU Beds"]?.capacity ?? "N/A"}
               </Button>
               <Button
                 mode="contained"
                 buttonColor="#10B981"
                 textColor="white"
                 style={{ marginLeft: 10 }}
-                onPress={() => Alert.alert("General Beds", `General Beds Available: ${hospital.resources["Non-ICU Beds"]?.capacity ?? 'N/A'}`)}
+                
+                onPress={async () => {
+                  await requestGeneral(hospital.hospital_id); // Wait for API request to complete
+                  router.push({
+                    pathname: '/report',
+                    params: {
+                      hospitalLatLong: JSON.stringify({
+                        lat: hospital.latitude,
+                        long: hospital.longitude,
+                        hospid: hospital.hospital_id,
+                      }),
+                    },
+                  });
+                }}
               >
-                General Beds: {hospital.resources["Non-ICU Beds"]?.capacity ?? 'N/A'}
+                General Beds: {hospital.resources["Non-ICU Beds"]?.capacity ?? "N/A"}
               </Button>
             </Card.Actions>
+           
           </Card>
         </TouchableOpacity>
       ))}
