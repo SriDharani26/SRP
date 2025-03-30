@@ -45,12 +45,7 @@ def handle_disconnect():
 
 @socketio.on('update_location')
 def handle_update_location(data):
-    """
-    Handles live location updates from the ambulance driver.
-    """
     try:
-        print("update_location event received:", data)  # Log the received data
-
         ambulance_id = data.get('ambulance_id')
         latitude = data.get('latitude')
         longitude = data.get('longitude')
@@ -60,41 +55,27 @@ def handle_update_location(data):
             emit('error', {'message': 'Invalid data received'})
             return
 
-        # Log the received live location
-        print(f"Received live location for Ambulance {ambulance_id}: Latitude={latitude}, Longitude={longitude}, HospID={hospid}")
-
-        # Update in-memory live location
-        live_locations[ambulance_id] = {
-            'ambulance_id': ambulance_id,
-            'latitude': latitude,
-            'longitude': longitude,
-            'hospid': hospid,
-            'timestamp': time.time()
-        }
-
         # Update the database with the live location
-        try:
-            db.Ambulance_Locations.update_one(
-                {'ambulance_id': ambulance_id},
-                {'$set': {
-                    'latitude': latitude,
-                    'longitude': longitude,
-                    'hospid': hospid,
-                    'timestamp': time.time()
-                }},
-                upsert=True
-            )
-            print(f"Database updated for Ambulance {ambulance_id}")
-        except Exception as db_error:
-            print(f"Error updating database for Ambulance {ambulance_id}: {db_error}")
+        db.Ambulance_Locations.update_one(
+            {'ambulance_id': ambulance_id},  # Match by ambulance_id
+            {'$set': {
+                'latitude': latitude,
+                'longitude': longitude,
+                'hospid': hospid,
+                'timestamp': time.time()
+            }},
+            upsert=True  # Insert if it doesn't exist
+        )
 
-        # Broadcast the live location to all connected clients
-        emit('location_update', live_locations[ambulance_id], broadcast=True)
-        print(f"Location update broadcasted: {live_locations[ambulance_id]}")
+        # Fetch the updated location
+        updated_location = db.Ambulance_Locations.find_one({'ambulance_id': ambulance_id}, {"_id": 0})
+
+        # Broadcast the updated location
+        emit('location_update', updated_location, broadcast=True)
+
     except Exception as e:
         print("Error in update_location:", e)
-        emit('error', {'message': str(e)})        
-
+        emit('error', {'message': str(e)})
 
 @socketio.on('stop_tracking')
 def handle_stop_tracking(data):
@@ -111,7 +92,72 @@ def handle_stop_tracking(data):
         print("Error in stop_tracking:", e)
         emit('error', {'message': str(e)})
 
+@app.route('/api/incoming_ambulances', methods=['GET'])
+def get_incoming_ambulances():
+    try:
+        hospid = request.args.get('hospid')
+        print(f"Received request for hospid: {hospid}")
+        if not hospid:
+            return jsonify({"error": "hospid is required"}), 400
 
+        db = client["GoldenPulse"]
+        location_collection = db["Ambulance_Locations"]
+
+        pipeline = [
+            # Match documents with the given hospid
+            {"$match": {"hospid": hospid}},
+            
+            # Perform a lookup to join with Ambulance_Reports on both ambulance_id and hospid
+            {"$lookup": {
+                "from": "Ambulance_Reports",
+                "let": {"ambulance_id": "$ambulance_id", "hospid": "$hospid"},
+                "pipeline": [
+                    {"$match": {
+                        "$expr": {
+                            "$and": [
+                                {"$eq": ["$ambulance_id", "$$ambulance_id"]},
+                                {"$eq": ["$hospid", "$$hospid"]}
+                            ]
+                        }
+                    }}
+                ],
+                "as": "report"
+            }},
+            
+            # Unwind the report array to flatten the results
+            {"$unwind": {"path": "$report", "preserveNullAndEmptyArrays": True}},
+            
+            # Group the results by ambulance_id
+            {"$group": {
+                "_id": "$ambulance_id",
+                "ambulance_id": {"$first": "$ambulance_id"},
+                "latitude": {"$first": "$latitude"},
+                "longitude": {"$first": "$longitude"},
+                "timestamp": {"$first": "$timestamp"},
+                "report": {"$first": "$report"}
+            }},
+            
+            # Project the required fields
+            {"$project": {
+                "_id": 0,
+                "ambulance_id": 1,
+                "latitude": 1,
+                "longitude": 1,
+                "timestamp": 1,
+                "report.severity": 1,
+                "report.icu_needed": 1,
+                "report.comments": 1
+            }}
+        ]
+
+        # Execute the aggregation pipeline
+        ambulances = list(location_collection.aggregate(pipeline))
+        print(f"Fetched ambulances: {ambulances}")
+        return jsonify({"ambulances": ambulances}), 200
+
+    except Exception as e:
+        print("Error fetching incoming ambulances:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/ambulance_alert')
 def getAlert():
@@ -243,9 +289,6 @@ def opting_generalbeds():
 
 @socketio.on('submit_report')
 def handle_submit_report(data):
-    """
-    Handles the submission of a patient report.
-    """
     try:
         ambulance_id = data.get('ambulance_id')
         hospid = data.get('hospid')
@@ -257,34 +300,27 @@ def handle_submit_report(data):
             emit('error', {'message': 'Invalid report data'})
             return
 
-        # Prepare the report data
-        report = {
-            'ambulance_id': ambulance_id,
-            'hospid': hospid,
-            'severity': severity,
-            'icu_needed': icu_needed,
-            'comments': comments,
-            'timestamp': time.time(),
-        }
-
-        # Update the report in the database or insert if it doesn't exist
-        result = db.Ambulance_Reports.update_one(
+        # Update the report in the database
+        db.Ambulance_Reports.update_one(
             {'ambulance_id': ambulance_id, 'hospid': hospid},  # Match by ambulance_id and hospid
-            {'$set': report},  # Overwrite the existing record with the new data
-            upsert=True  # Create a new record if no match is found
+            {'$set': {
+                'severity': severity,
+                'icu_needed': icu_needed,
+                'comments': comments,
+                'timestamp': time.time()
+            }},
+            upsert=True  # Insert if it doesn't exist
         )
 
-        # Log the operation
-        if result.matched_count > 0:
-            print(f"Report updated for Ambulance {ambulance_id} and Hospital {hospid}")
-        else:
-            print(f"New report created for Ambulance {ambulance_id} and Hospital {hospid}")
+        # Fetch the updated report
+        updated_report = db.Ambulance_Reports.find_one({'ambulance_id': ambulance_id, 'hospid': hospid}, {"_id": 0})
+        print("Updated report:", updated_report)  # Debugging log
 
-        # Broadcast the report to all connected hospital interfaces
-        report['_id'] = str(result.upserted_id) if result.upserted_id else None  # Convert ObjectId to string if a new record was created
-        emit('new_report', report, broadcast=True)
+        # Broadcast the updated report
+        emit('new_report', updated_report, broadcast=True)
+
     except Exception as e:
-        print("Error in handle_submit_report:", e)
+        print("Error in submit_report:", e)
         emit('error', {'message': str(e)})
 
 def fetch_hospital_data():
@@ -341,6 +377,7 @@ def find_nearest_hospitals():
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
+
 
 
 DECREASE_CAPACITY_RESOURCES = {"Oxygen Cylinders", "PPE Kits", "Medicines"}
