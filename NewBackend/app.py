@@ -45,12 +45,20 @@ def getAlert():
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
+    
+    
+# await db.post(`request_decline`, {
+#         ambulance_id: "A020",
+#       });
+# ambulnce id is shared through the params
 
 @app.route('/request_accept', methods=['POST'])
 def accept_alert():
     data = request.json
     ambulance_id = data.get("ambulance_id")
     return jsonify({"message": f"Ambulance {ambulance_id} accepted the alert"}), 200
+
+
 
 @app.route('/request_decline', methods=['POST'])
 def decline_alert():
@@ -59,7 +67,18 @@ def decline_alert():
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
 
+@app.route('opting_icu')
+def opting_icubeds():
+    return jsonify({"message": "got that"}), 200
 
+@app.route('opting_general')
+def opting_generalbeds():
+    return jsonify({"message": "got that"}), 200
+
+
+@app.route('submit_report')
+def submitting_report():
+    return jsonify({"message": "got that"}), 200
 
 def fetch_hospital_data():
     
