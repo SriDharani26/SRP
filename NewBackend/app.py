@@ -54,9 +54,37 @@ def getAlert():
 
 @app.route('/request_accept', methods=['POST'])
 def accept_alert():
+    db = client["GoldenPulse"]
     data = request.json
     ambulance_id = data.get("ambulance_id")
-    return jsonify({"message": f"Ambulance {ambulance_id} accepted the alert"}), 200
+
+    if not ambulance_id:
+        return jsonify({"error": "Ambulance ID is required"}), 400
+
+    # Remove ambulance record from Ambulance_alerts collection
+    db.Ambulance_alerts.delete_one({"Ambulance ID": ambulance_id})
+
+    # Update ambulance status to "On Duty" in Ambulance_distribution
+    db.Ambulance_distribution.update_one(
+        {"Ambulance ID": ambulance_id},
+        {"$set": {"Status": "On Duty"}}
+    )
+
+    # Fetch the most recent accident from Accident_reports
+    recent_accident = db.Accident_reports.find_one(
+        {}, sort=[("timestamp", -1)]
+    )
+
+    if recent_accident:
+        accident_id = recent_accident.get("_id")
+
+        # Append ambulance_id to the accident report (ensure it's stored as an array)
+        db.Accident_reports.update_one(
+            {"_id": accident_id},
+            {"$addToSet": {"Ambulances": ambulance_id}}  # Prevent duplicates
+        )
+
+    return jsonify({"message": f"Ambulance {ambulance_id} accepted the alert and updated records"}), 200
 
 
 
