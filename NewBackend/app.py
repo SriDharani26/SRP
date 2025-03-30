@@ -105,12 +105,50 @@ def decline_alert():
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
 
-@app.route('opting_icu')
+@app.route('/opting_icu', methods=['POST'])
 def opting_icubeds():
+    data = request.json
+    hospital_id = data.get("hospital_id")
+    ambulance_id = data.get("ambulance_id")
+    request_type = "ICU Beds"  # Should be either "ICU" or "Non-ICU"
+
+    # Add the ambulance request to Hospital_alerts
+    db.Hospital_alerts.update_one(
+        {"hospital_id": hospital_id},
+        {"$addToSet": {"ambulances": {"ambulance_id": ambulance_id, "request_type": request_type}}},
+        upsert=True  # Create document if hospital_id doesn't exist
+    )
+
+    bed_field = "ICU Beds"
+
+    # Reduce the hospital's available resource count
+    db.Hospital_distribution.update_one(
+        {"hospital_id": hospital_id},
+        {"$inc": {bed_field: -1}}  # Decrease the count by 1
+    )
     return jsonify({"message": "got that"}), 200
 
 @app.route('opting_general')
 def opting_generalbeds():
+    data = request.json
+    hospital_id = data.get("hospital_id")
+    ambulance_id = data.get("ambulance_id")
+    request_type = "Non-ICU Beds"  # Should be either "ICU" or "Non-ICU"
+
+    # Add the ambulance request to Hospital_alerts
+    db.Hospital_alerts.update_one(
+        {"hospital_id": hospital_id},
+        {"$addToSet": {"ambulances": {"ambulance_id": ambulance_id, "request_type": request_type}}},
+        upsert=True  # Create document if hospital_id doesn't exist
+    )
+
+    bed_field = "Non-ICU Beds"
+
+    # Reduce the hospital's available resource count
+    db.Hospital_distribution.update_one(
+        {"hospital_id": hospital_id},
+        {"$inc": {bed_field: -1}}  # Decrease the count by 1
+    )
     return jsonify({"message": "got that"}), 200
 
 
