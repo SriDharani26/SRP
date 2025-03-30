@@ -9,6 +9,8 @@ from pymongo import MongoClient
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 
+from flask_socketio import SocketIO, emit
+import time
 
 load_dotenv()
 app = Flask(__name__)
@@ -18,10 +20,97 @@ CORS(app)
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db= client['GoldenPulse']
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Ensure collections exist
+if "Ambulance_Locations" not in db.list_collection_names():
+    db.create_collection("Ambulance_Locations")
+if "Ambulance_Reports" not in db.list_collection_names():
+    db.create_collection("Ambulance_Reports")
+
 
 @app.route('/')
 def home():
     return "Brotatoes for the win!"
+
+
+live_locations = {}
+@socketio.on('connect')
+def handle_connect():
+    print("Client connected")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Client disconnected")
+
+@socketio.on('update_location')
+def handle_update_location(data):
+    """
+    Handles live location updates from the ambulance driver.
+    """
+    try:
+        print("update_location event received:", data)  # Log the received data
+
+        ambulance_id = data.get('ambulance_id')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        hospid = data.get('hospid')
+
+        if not ambulance_id or latitude is None or longitude is None or not hospid:
+            emit('error', {'message': 'Invalid data received'})
+            return
+
+        # Log the received live location
+        print(f"Received live location for Ambulance {ambulance_id}: Latitude={latitude}, Longitude={longitude}, HospID={hospid}")
+
+        # Update in-memory live location
+        live_locations[ambulance_id] = {
+            'ambulance_id': ambulance_id,
+            'latitude': latitude,
+            'longitude': longitude,
+            'hospid': hospid,
+            'timestamp': time.time()
+        }
+
+        # Update the database with the live location
+        try:
+            db.Ambulance_Locations.update_one(
+                {'ambulance_id': ambulance_id},
+                {'$set': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'hospid': hospid,
+                    'timestamp': time.time()
+                }},
+                upsert=True
+            )
+            print(f"Database updated for Ambulance {ambulance_id}")
+        except Exception as db_error:
+            print(f"Error updating database for Ambulance {ambulance_id}: {db_error}")
+
+        # Broadcast the live location to all connected clients
+        emit('location_update', live_locations[ambulance_id], broadcast=True)
+        print(f"Location update broadcasted: {live_locations[ambulance_id]}")
+    except Exception as e:
+        print("Error in update_location:", e)
+        emit('error', {'message': str(e)})        
+
+
+@socketio.on('stop_tracking')
+def handle_stop_tracking(data):
+    """
+    Stops tracking the ambulance when it reaches the destination.
+    """
+    try:
+        ambulance_id = data.get('ambulance_id')
+        if ambulance_id in live_locations:
+            del live_locations[ambulance_id]
+            db.Ambulance_Locations.delete_one({'ambulance_id': ambulance_id})
+            emit('tracking_stopped', {'ambulance_id': ambulance_id}, broadcast=True)
+    except Exception as e:
+        print("Error in stop_tracking:", e)
+        emit('error', {'message': str(e)})
+
 
 
 @app.route('/ambulance_alert')
@@ -105,18 +194,60 @@ def decline_alert():
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
 
-@app.route('opting_icu')
+@app.route('/opting_icu')
 def opting_icubeds():
     return jsonify({"message": "got that"}), 200
 
-@app.route('opting_general')
+@app.route('/opting_general')
 def opting_generalbeds():
     return jsonify({"message": "got that"}), 200
 
 
-@app.route('submit_report')
-def submitting_report():
-    return jsonify({"message": "got that"}), 200
+@socketio.on('submit_report')
+def handle_submit_report(data):
+    """
+    Handles the submission of a patient report.
+    """
+    try:
+        ambulance_id = data.get('ambulance_id')
+        hospid = data.get('hospid')
+        severity = data.get('severity')
+        icu_needed = data.get('icuNeeded')
+        comments = data.get('comments')
+
+        if not ambulance_id or not hospid or not severity or icu_needed is None:
+            emit('error', {'message': 'Invalid report data'})
+            return
+
+        # Prepare the report data
+        report = {
+            'ambulance_id': ambulance_id,
+            'hospid': hospid,
+            'severity': severity,
+            'icu_needed': icu_needed,
+            'comments': comments,
+            'timestamp': time.time(),
+        }
+
+        # Update the report in the database or insert if it doesn't exist
+        result = db.Ambulance_Reports.update_one(
+            {'ambulance_id': ambulance_id, 'hospid': hospid},  # Match by ambulance_id and hospid
+            {'$set': report},  # Overwrite the existing record with the new data
+            upsert=True  # Create a new record if no match is found
+        )
+
+        # Log the operation
+        if result.matched_count > 0:
+            print(f"Report updated for Ambulance {ambulance_id} and Hospital {hospid}")
+        else:
+            print(f"New report created for Ambulance {ambulance_id} and Hospital {hospid}")
+
+        # Broadcast the report to all connected hospital interfaces
+        report['_id'] = str(result.upserted_id) if result.upserted_id else None  # Convert ObjectId to string if a new record was created
+        emit('new_report', report, broadcast=True)
+    except Exception as e:
+        print("Error in handle_submit_report:", e)
+        emit('error', {'message': str(e)})
 
 def fetch_hospital_data():
     
@@ -258,5 +389,6 @@ def get_resources():
 
 if __name__ == '__main__':
     
-    app.config['DEBUG'] = True
-    app.run(host='0.0.0.0', port=5000)
+
+   socketio.run(app, host='0.0.0.0', port=5000 , debug=True)
+    # app.run(debug=True)
