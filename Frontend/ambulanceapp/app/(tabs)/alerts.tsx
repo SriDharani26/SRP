@@ -7,9 +7,20 @@ import { useRouter } from 'expo-router';
 import db from "@/api/api";
 
 export default function AlertsPage() {
-  const [note, setNote] = useState(null);
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
+  interface Accident {
+    "Accident Type": string;
+    Latitude: number;
+    Longitude: number;
+    "Number of People Injured": number;
+  }
+
+  interface Note {
+    Accidents: Accident[]; // Expecting an array of accidents
+  }
+
+  const [note, setNote] = useState<Note | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [status, setStatus] = useState("pending"); 
   const router = useRouter();
 
@@ -17,10 +28,11 @@ export default function AlertsPage() {
     const fetchNote = async () => {
       try {
         const response = await db.get(`/ambulance_alert`);
-        setNote(response.data);
+        console.log("API Response:", response.data); // Log the response to verify structure
+        setNote(response.data); // Ensure the response matches the expected structure
       } catch (error) {
-        
         console.error("Error fetching data:", error);
+        Alert.alert("Error", "Failed to fetch accident data.");
       }
     };
 
@@ -57,7 +69,7 @@ export default function AlertsPage() {
   const fetchNearestHospital = async () => {
     try {
       const response = await db.get(`nearest_hospital`, {
-        params: {latitude: note.Accidents[0].Latitude, longitude: note.Accidents[0].Longitude},
+        params: { latitude: note?.Accidents?.[0]?.Latitude, longitude: note?.Accidents?.[0]?.Longitude },
       });
       Alert.alert("Nearest Hospital", response.data.hospital_name);
     } catch (error) {
@@ -76,7 +88,7 @@ export default function AlertsPage() {
       <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>Emergency Alerts</Text>
 
       {status === "pending" ? (
-        !note || !note.Accidents ? (
+        !note || !Array.isArray(note.Accidents) || note.Accidents.length === 0 ? (
           <Card style={{ margin: 10, padding: 10 }}>
             <Card.Content>
               <Text style={{ fontSize: 18, fontWeight: "bold" }}>Accident Details</Text>
@@ -93,29 +105,27 @@ export default function AlertsPage() {
                 <Text>Number of People Injured: {accident["Number of People Injured"]}</Text>
               </Card.Content>
               <Card.Actions>
-                
-              <Button
-                mode="contained"
-                buttonColor="green"
-                textColor="white"
-                onPress={() => {
-                  setStatus("accepted");
-                  setLatitude(accident.Latitude);
-                  setLongitude(accident.Longitude); // Ensure status updates correctly
-                  router.push({
-                    pathname: "/hoschoose",
-                    params: {
-                      ambulancelatlong: JSON.stringify({
-                        latitude: accident.Latitude,
-                        longitude: accident.Longitude,
-                      }),
-                    },
-                  });
-                }}
-                
-              >
-               Accept
-              </Button>
+                <Button
+                  mode="contained"
+                  buttonColor="green"
+                  textColor="white"
+                  onPress={() => {
+                    setStatus("accepted");
+                    setLatitude(accident.Latitude);
+                    setLongitude(accident.Longitude); // Ensure status updates correctly
+                    router.push({
+                      pathname: "/hoschoose",
+                      params: {
+                        ambulancelatlong: JSON.stringify({
+                          latitude: accident.Latitude,
+                          longitude: accident.Longitude,
+                        }),
+                      },
+                    });
+                  }}
+                >
+                  Accept
+                </Button>
                 <Button mode="outlined" textColor="#1E3A8A" onPress={handleDecline}>
                   Decline
                 </Button>
@@ -127,23 +137,23 @@ export default function AlertsPage() {
 
       {status === "accepted" && (
         <Button
-        mode="contained"
-        buttonColor="green"
-        textColor="white"
-        onPress={() =>
-          router.push({
-            pathname: "/hoschoose",
-            params: {
-              ambulancelatlong: JSON.stringify({
-                latitude: latitude,
-                longitude:longitude,
-              }),
-            },
-          })
-        }
-      >
-        Fetch Nearest Hospital
-      </Button>
+          mode="contained"
+          buttonColor="green"
+          textColor="white"
+          onPress={() =>
+            router.push({
+              pathname: "/hoschoose",
+              params: {
+                ambulancelatlong: JSON.stringify({
+                  latitude: latitude,
+                  longitude: longitude,
+                }),
+              },
+            })
+          }
+        >
+          Fetch Nearest Hospital
+        </Button>
       )}
 
       {status === "declined" && (
@@ -152,6 +162,5 @@ export default function AlertsPage() {
         </Button>
       )}
     </ScrollView>
-
   );
 }

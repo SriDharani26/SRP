@@ -6,10 +6,20 @@ import * as Location from 'expo-location';
 import db from "@/api/api";
 
 export default function HospitalAvailability() {
-  const [hospitals, setHospitals] = useState([]);
+  const [hospitals, setHospitals] = useState<{
+    hospital_id: any; 
+    latitude: number; 
+    longitude: number; 
+    hospital_name: string; 
+    resources: { [key: string]: { capacity: number } }; 
+    distance?: number; 
+    time?: number; 
+  }[]>([]);
   const [Latitude, setLatitude] = useState<number | null>(null);
   const [Longitude, setLongitude] = useState<number | null>(null);
-  const [nearesthospital, setNearest] = useState([]);
+  const [nearesthospital, setNearest] = useState<{
+    hospital_id: any; latitude: number; longitude: number; hospital_name: string; resources: { [key: string]: { capacity: number } } 
+}[]>([]);
   const [loading, setLoading] = useState(true);
   const [driverLocation, setDriverLocation] = useState<{ lat: number; long: number } | null>(null);
   const router = useRouter();
@@ -46,10 +56,20 @@ export default function HospitalAvailability() {
 
   const fetchNearestHospital = async () => {
     try {
+      console.log("Current Location:", Latitude, Longitude);
       const response = await db.get(`nearest_hospital`, {
         params: { latitude: Latitude, longitude: Longitude },
       });
       setNearest(response.data.nearest_hospitals);
+      
+      // Log the latitude and longitude of the nearest hospitals
+      response.data.nearest_hospitals.forEach((hospital: { hospital_id: any; latitude: any; longitude: any; }, index: number) => {
+        console.log(`Hospital ${index + 1}:`, {
+          hospid: hospital.hospital_id,
+          latitude: hospital.latitude,
+          longitude: hospital.longitude,
+        });
+      });
     } catch (error) {
       console.error("Error fetching hospitals:", error);
       Alert.alert("Error", "Could not fetch nearest hospital.");
@@ -68,6 +88,7 @@ export default function HospitalAvailability() {
 
           return {
             ...hospital,
+            hospital_id: hospital.hospital_id, // Ensure hospital_id is included
             distance: routeData.distance,
             time: routeData.duration,
           };
@@ -82,7 +103,7 @@ export default function HospitalAvailability() {
     calculateDistances();
   }, [driverLocation, nearesthospital]);
 
-  const fetchRoute = async (start, end) => {
+  const fetchRoute = async (start: { lat: any; long: any; }, end: { lat: any; long: any; }) => {
     try {
       const response = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${start.long},${start.lat};${end.long},${end.lat}?overview=false`
@@ -112,8 +133,27 @@ export default function HospitalAvailability() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: 'white', padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Nearest Hospital Resources</Text>
-      {hospitals.map((hospital) => (
-       
+      {hospitals.map((hospital, index) => (
+        <TouchableOpacity
+          key={index}
+          onPress={() => {
+            console.log("Navigating to ReportPage with:", {
+              lat: hospital.latitude,
+              long: hospital.longitude,
+              hospid: hospital.hospital_id,
+            });
+            router.push({
+              pathname: '/report',
+              params: {
+                hospitalLatLong: JSON.stringify({
+                  lat: hospital.latitude,
+                  long: hospital.longitude,
+                  hospid: hospital.hospital_id,
+                }),
+              },
+            });
+          }}
+        >
           <Card style={{ marginBottom: 10 }}>
             <Card.Content>
               <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{hospital.hospital_name}</Text>
@@ -121,13 +161,27 @@ export default function HospitalAvailability() {
               <Text>Estimated Time: {hospital.time ? `${Math.ceil(hospital.time / 60)} min` : 'N/A'}</Text>
             </Card.Content>
             <Card.Actions>
-              <Button mode="contained" onPress={() => router.push('/report')}>ICU Beds: {hospital.resources["ICU Beds"].capacity}</Button>
-              <Button mode="contained"onPress={() => router.push('/report')} >General Beds: {hospital.resources["Non-ICU Beds"].capacity}</Button>
+              <Button
+                mode="contained"
+                buttonColor="#1E3A8A"
+                textColor="white"
+                onPress={() => Alert.alert("ICU Beds", `ICU Beds Available: ${hospital.resources["ICU Beds"]?.capacity ?? 'N/A'}`)}
+              >
+                ICU Beds: {hospital.resources["ICU Beds"]?.capacity ?? 'N/A'}
+              </Button>
+              <Button
+                mode="contained"
+                buttonColor="#10B981"
+                textColor="white"
+                style={{ marginLeft: 10 }}
+                onPress={() => Alert.alert("General Beds", `General Beds Available: ${hospital.resources["Non-ICU Beds"]?.capacity ?? 'N/A'}`)}
+              >
+                General Beds: {hospital.resources["Non-ICU Beds"]?.capacity ?? 'N/A'}
+              </Button>
             </Card.Actions>
           </Card>
-        
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );
 }
-

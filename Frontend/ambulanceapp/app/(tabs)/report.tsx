@@ -1,42 +1,62 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Alert, ScrollView, TouchableOpacity, Text } from 'react-native';
-import { Button, TextInput, RadioButton } from 'react-native-paper';
-import MapView, { MapStyleElement, Marker, Polyline } from 'react-native-maps';
+import { StyleSheet, View, Alert, ScrollView, TouchableOpacity, Text, TextInput } from 'react-native';
+import { Button, RadioButton } from 'react-native-paper';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
+import { io } from 'socket.io-client';
 
 export default function ReportPage() {
-  const { hospitalLatLong: hospitalLatLongRaw } = useLocalSearchParams(); // Retrieve hospitalLatLong from params
+  const { hospitalLatLong: hospitalLatLongRaw } = useLocalSearchParams();
   const hospitalLatLong = hospitalLatLongRaw
     ? JSON.parse(hospitalLatLongRaw as string)
-    : { lat: 0, long: 0 }; // Parse the hospitalLatLong parameter
+    : { lat: 0, long: 0, hospid: 'HOSP001' };
 
+  const [ambulanceLocation, setAmbulanceLocation] = useState<{ lat: number; long: number } | null>(null);
+  const [initialLocation, setInitialLocation] = useState<{ lat: number; long: number } | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [severity, setSeverity] = useState('medium');
+  const [icuNeeded, setIcuNeeded] = useState('no');
+  const [ambulanceDetails, setAmbulanceDetails] = useState({
+    ambulanceId: 'AMB001',
+    driverName: 'John Doe',
+    contactNumber: '1234567890',
+  });
+  const [comments, setComments] = useState('');
 
-  const [ambulanceLocation, setAmbulanceLocation] = useState<{ lat: number; long: number } | null>(null); // Live location of the ambulance
-  const [initialLocation, setInitialLocation] = useState<{ lat: number; long: number } | null>(null); // Fixed initial location for routing
-  const [routeCoordinates, setRouteCoordinates] = useState([]); // Route coordinates
-  const [isFullscreen, setIsFullscreen] = useState(false); // Toggle fullscreen map
-  const mapRef = useRef<MapView>(null); // Reference to the MapView
-
-  
-
-  const lightMapStyle: MapStyleElement[] | undefined = []; // Use an empty array for the default light map style
+  const mapRef = useRef<MapView>(null);
+  const socket = useRef<ReturnType<typeof io> | null>(null);
 
   useEffect(() => {
+    // Initialize WebSocket connection
+    socket.current = io('http://10.16.49.34:5000');
+  
+    // Log WebSocket connection status
+    socket.current.on('connect', () => {
+      console.log('WebSocket connected');
+    });
+  
+    socket.current.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+    });
+  
+    socket.current.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+    });
+
     const getLiveLocation = async () => {
-      // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
         return;
       }
 
-      // Watch the live location of the ambulance
       Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 1000, // Update every second
-          distanceInterval: 1, // Update when the device moves 1 meter
+          timeInterval: 1000,
+          distanceInterval: 1,
         },
         (location) => {
           const { latitude, longitude } = location.coords;
@@ -44,19 +64,28 @@ export default function ReportPage() {
 
           setAmbulanceLocation(currentLocation);
 
-          // Set the initial location only once
+          // Send live location to the backend via WebSocket
+          if (socket.current) {
+            console.log('Emitting location update to backend');
+            socket.current.emit('update_location', {
+              ambulance_id: ambulanceDetails.ambulanceId,
+              latitude,
+              longitude,
+              hospid: hospitalLatLong.hospid,
+            });
+          }
+
           if (!initialLocation) {
             setInitialLocation(currentLocation);
 
-            // Fit the map to show both the ambulance and hospital locations
             if (mapRef.current) {
               mapRef.current.fitToCoordinates(
                 [
-                  { latitude, longitude }, // Ambulance location
-                  { latitude: hospitalLatLong.lat, longitude: hospitalLatLong.long }, // Hospital location
+                  { latitude, longitude },
+                  { latitude: hospitalLatLong.lat, longitude: hospitalLatLong.long },
                 ],
                 {
-                  edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, // Padding around the edges
+                  edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
                   animated: true,
                 }
               );
@@ -67,6 +96,13 @@ export default function ReportPage() {
     };
 
     getLiveLocation();
+
+    return () => {
+      if (socket.current) {
+        socket.current.emit('stop_tracking', { ambulance_id: ambulanceDetails.ambulanceId });
+        socket.current.disconnect();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -90,15 +126,10 @@ export default function ReportPage() {
             }));
             setRouteCoordinates(route);
           } else {
-            console.error('No routes found');
             Alert.alert('Error', 'No routes found between the locations.');
           }
         } catch (error) {
-          console.error('Error fetching route:', error);
-          Alert.alert(
-            'Network Error',
-            'Failed to fetch the route. Please check your internet connection or try again later.'
-          );
+          Alert.alert('Network Error', 'Failed to fetch the route.');
         }
       };
 
@@ -108,22 +139,23 @@ export default function ReportPage() {
 
   const handleSubmit = () => {
     const reportData = {
+      ambulance_id: ambulanceDetails.ambulanceId,
+      hospid: hospitalLatLong.hospid,
       severity,
       icuNeeded,
-      ambulanceDetails,
+      comments, // Include comments in the report
     };
 
-    console.log('Report Submitted:', reportData);
-    alert('Report submitted successfully!');
+    if (socket.current) {
+      socket.current.emit('submit_report', reportData); // Emit report data to the backend
+    }
+
+    Alert.alert('Success', 'Report submitted successfully!');
   };
 
-  const [severity, setSeverity] = useState('medium');
-  const [icuNeeded, setIcuNeeded] = useState('no');
-  const [ambulanceDetails, setAmbulanceDetails] = useState({
-    ambulanceId: 'AMB001',
-    driverName: 'John Doe',
-    contactNumber: '1234567890',
-  });
+  function handleSetCommentsError(text: string): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <View style={styles.container}>
@@ -133,7 +165,6 @@ export default function ReportPage() {
           <MapView
             ref={mapRef}
             style={styles.fullscreenMap}
-            customMapStyle={lightMapStyle} // Apply light map style
             initialRegion={{
               latitude: ambulanceLocation?.lat || 0,
               longitude: ambulanceLocation?.long || 0,
@@ -192,7 +223,6 @@ export default function ReportPage() {
             <MapView
               ref={mapRef}
               style={styles.map}
-              customMapStyle={lightMapStyle} // Apply light map style
               initialRegion={{
                 latitude: ambulanceLocation?.lat || 0,
                 longitude: ambulanceLocation?.long || 0,
@@ -256,7 +286,16 @@ export default function ReportPage() {
             <RadioButton.Item label="No" value="no" />
           </RadioButton.Group>
 
-     
+          {/* Comments */}
+        <Text style={styles.label}>Comments:</Text>
+        <TextInput
+          style={styles.textArea}
+          placeholder="Enter comments about the patient's condition..."
+          multiline
+          value={comments}
+          onChangeText={(text) => setComments(text)}
+        />
+
           {/* Submit Button */}
           <Button mode="contained" style={styles.submitButton} onPress={handleSubmit}>
             Submit Report
@@ -311,9 +350,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 10,
   },
-  input: {
-    marginBottom: 10,
-    backgroundColor: 'white',
+  textArea: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+    marginTop: 10,
+    textAlignVertical: 'top', // Ensures text starts at the top for multiline inputs
   },
   submitButton: {
     marginTop: 20,
