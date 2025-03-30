@@ -5,6 +5,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
 import { io } from 'socket.io-client';
+import {debounce} from 'lodash';
 
 export default function ReportPage() {
   const { hospitalLatLong: hospitalLatLongRaw } = useLocalSearchParams();
@@ -107,33 +108,39 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (initialLocation) {
-      const fetchRoute = async () => {
-        try {
-          const response = await fetch(
-            `https://router.project-osrm.org/route/v1/driving/${initialLocation.long},${initialLocation.lat};${hospitalLatLong.long},${hospitalLatLong.lat}?overview=full&geometries=geojson`
-          );
-
-          if (!response.ok) {
-            throw new Error(`OSRM API returned status ${response.status}`);
-          }
-
-          const data = await response.json();
-
-          if (data.routes && data.routes.length > 0) {
-            const route = data.routes[0].geometry.coordinates.map((coord: any[]) => ({
-              latitude: coord[1],
-              longitude: coord[0],
-            }));
-            setRouteCoordinates(route);
-          } else {
-            Alert.alert('Error', 'No routes found between the locations.');
-          }
-        } catch (error) {
-          Alert.alert('Network Error', 'Failed to fetch the route.');
-        }
-      };
-
-      fetchRoute();
+            // Debounced fetchRoute function
+            const debouncedFetchRoute = debounce(async () => {
+              try {
+                const response = await fetch(
+                  `https://router.project-osrm.org/route/v1/driving/${initialLocation.long},${initialLocation.lat};${hospitalLatLong.long},${hospitalLatLong.lat}?overview=full&geometries=geojson`
+                );
+      
+                if (!response.ok) {
+                  throw new Error(`OSRM API returned status ${response.status}`);
+                }
+      
+                const data = await response.json();
+      
+                if (data.routes && data.routes.length > 0) {
+                  const route = data.routes[0].geometry.coordinates.map((coord: any[]) => ({
+                    latitude: coord[1],
+                    longitude: coord[0],
+                  }));
+                  setRouteCoordinates(route);
+                } else {
+                  Alert.alert('Error', 'No routes found between the locations.');
+                }
+              } catch (error) {
+                Alert.alert('Network Error', 'Failed to fetch the route.');
+              }
+            }, 5000); // Debounce with a 2-second delay
+      
+            debouncedFetchRoute();
+      
+            // Cleanup the debounce function on unmount
+            return () => {
+              debouncedFetchRoute.cancel();
+            };
     }
   }, [initialLocation, hospitalLatLong]);
 
