@@ -17,6 +17,7 @@ CORS(app)
 
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
+db= client['GoldenPulse']
 
 @app.route('/')
 def home():
@@ -26,7 +27,6 @@ def home():
 @app.route('/ambulance_alert')
 def getAlert():
     try:
-        db = client['GoldenPulse']
         accident_collection = db['Ambulance_alerts']
         
         # Fetch all accidents related to the given Ambulance ID
@@ -54,7 +54,6 @@ def getAlert():
 
 @app.route('/request_accept', methods=['POST'])
 def accept_alert():
-    db = client["GoldenPulse"]
     data = request.json
     ambulance_id = data.get("ambulance_id")
 
@@ -92,6 +91,17 @@ def accept_alert():
 def decline_alert():
     data = request.json
     ambulance_id = data.get("ambulance_id")
+    if not ambulance_id:
+        return jsonify({"error": "Ambulance ID is required"}), 400
+
+    # Remove ambulance record from Ambulance_alerts collection
+    db.Ambulance_alerts.delete_one({"ambulance_id": ambulance_id})
+
+    # Update ambulance status to "Unavailable" in Ambulance_distribution
+    db.Ambulance_distribution.update_one(
+        {"ambulance_id": ambulance_id},
+        {"$set": {"status": "Unavailable"}}
+    )
     return jsonify({"message": f"Ambulance {ambulance_id} declined the alert"}), 200
 
 
