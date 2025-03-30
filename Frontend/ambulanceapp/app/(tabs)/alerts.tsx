@@ -17,7 +17,7 @@ export default function AlertsPage() {
   interface Note {
     Accidents: Accident[]; // Expecting an array of accidents
   }
-
+  const ambulanceid="A0237"
   const [note, setNote] = useState<Note | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -27,13 +27,18 @@ export default function AlertsPage() {
   useEffect(() => {
     const fetchNote = async () => {
       try {
+      
         const response = await db.get(`/ambulance_alert`);
-        console.log("API Response:", response.data); // Log the response to verify structure
-        setNote(response.data); // Ensure the response matches the expected structure
+        console.log("API Response:", response.data); // Log to verify structure
+        if (response.data && Array.isArray(response.data.Accidents)) {
+          setNote(response.data);
+        } else {
+          console.warn("Unexpected API response format", response.data);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         Alert.alert("Error", "Failed to fetch accident data.");
-      }
+      } 
     };
 
     fetchNote();
@@ -43,9 +48,10 @@ export default function AlertsPage() {
   const handleAccept = async () => {
     try {
       await db.post(`request_accept`, {
-        ambulance_id: "A016",
+        ambulance_id: ambulanceid,
       });
       setStatus("accepted");
+
     } catch (error) {
       console.error("Error accepting alert:", error);
       Alert.alert("Error", "Could not accept the alert.");
@@ -56,7 +62,7 @@ export default function AlertsPage() {
   const handleDecline = async () => {
     try {
       await db.post(`request_decline`, {
-        ambulance_id: "A020",
+        ambulance_id: ambulanceid,
       });
       setStatus("declined");
     } catch (error) {
@@ -66,17 +72,7 @@ export default function AlertsPage() {
   };
 
   // Fetch Nearest Hospital
-  const fetchNearestHospital = async () => {
-    try {
-      const response = await db.get(`nearest_hospital`, {
-        params: { latitude: note?.Accidents?.[0]?.Latitude, longitude: note?.Accidents?.[0]?.Longitude },
-      });
-      Alert.alert("Nearest Hospital", response.data.hospital_name);
-    } catch (error) {
-      console.error("Error fetching hospital:", error);
-      Alert.alert("Error", "Could not fetch nearest hospital.");
-    }
-  };
+
 
   // Make Me Available Again
   const makeAvailableAgain = async () => {
@@ -110,6 +106,7 @@ export default function AlertsPage() {
                   buttonColor="green"
                   textColor="white"
                   onPress={() => {
+                    handleAccept();
                     setStatus("accepted");
                     setLatitude(accident.Latitude);
                     setLongitude(accident.Longitude); // Ensure status updates correctly

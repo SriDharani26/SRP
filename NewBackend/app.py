@@ -159,33 +159,30 @@ def get_incoming_ambulances():
         print("Error fetching incoming ambulances:", e)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/ambulance_alert')
+@app.route('/ambulance_alert', methods=['GET'])
 def getAlert():
     try:
         accident_collection = db['Ambulance_alerts']
-        
+        # data = request.json
+        # ambulance_id = data.get("ambulance_id")
         # Fetch all accidents related to the given Ambulance ID
         accidents = list(accident_collection.find(
-            {"Ambulance ID": "A016"}, 
+            {"Ambulance ID":"A0237"}, 
             {"_id": 0, "Accident Type": 1, "Number of People Injured": 1, "Latitude": 1, "Longitude": 1}
         ))
         
         print("Accidents:", accidents)
-
+       
         if accidents:
             return jsonify({"Accidents": accidents}), 200
         else:
-            return jsonify({"Accidents": "No recent accidents found."}), 200
+            return jsonify({"Accidents": "No recent accidents here found."}), 200
 
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
     
     
-# await db.post(`request_decline`, {
-#         ambulance_id: "A020",
-#       });
-# ambulnce id is shared through the params
 
 @app.route('/request_accept', methods=['POST'])
 def accept_alert():
@@ -263,7 +260,7 @@ def opting_icubeds():
     )
     return jsonify({"message": "got that"}), 200
 
-@app.route('/opting_general')
+@app.route('/opting_general',methods=['POST'])
 def opting_generalbeds():
     data = request.json
     hospital_id = data.get("hospital_id")
@@ -287,7 +284,7 @@ def opting_generalbeds():
     return jsonify({"message": "got that"}), 200
 
 
-@socketio.on('submit_report')
+@socketio.on('/submit_report')
 def handle_submit_report(data):
     try:
         ambulance_id = data.get('ambulance_id')
@@ -322,6 +319,10 @@ def handle_submit_report(data):
     except Exception as e:
         print("Error in submit_report:", e)
         emit('error', {'message': str(e)})
+        
+# @app.route('/submit_report')
+# def submitting_report():
+#     return jsonify({"message": "got that"}), 200
 
 def fetch_hospital_data():
     
