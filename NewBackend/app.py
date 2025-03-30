@@ -284,16 +284,20 @@ def opting_generalbeds():
     return jsonify({"message": "got that"}), 200
 
 
-@socketio.on('/submit_report')
+@socketio.on('submit_report')
 def handle_submit_report(data):
     try:
+        print("Received report data:", data)  # Debugging log   
+        # Extract data from the incoming WebSocket event
         ambulance_id = data.get('ambulance_id')
         hospid = data.get('hospid')
         severity = data.get('severity')
         icu_needed = data.get('icuNeeded')
         comments = data.get('comments')
 
+        # Validate the incoming data
         if not ambulance_id or not hospid or not severity or icu_needed is None:
+            print("Invalid data received:", data)
             emit('error', {'message': 'Invalid report data'})
             return
 
@@ -313,13 +317,13 @@ def handle_submit_report(data):
         updated_report = db.Ambulance_Reports.find_one({'ambulance_id': ambulance_id, 'hospid': hospid}, {"_id": 0})
         print("Updated report:", updated_report)  # Debugging log
 
-        # Broadcast the updated report
+        # Broadcast the updated report to all connected clients
         emit('new_report', updated_report, broadcast=True)
 
     except Exception as e:
         print("Error in submit_report:", e)
         emit('error', {'message': str(e)})
-        
+
 # @app.route('/submit_report')
 # def submitting_report():
 #     return jsonify({"message": "got that"}), 200

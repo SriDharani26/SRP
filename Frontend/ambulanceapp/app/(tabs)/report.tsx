@@ -152,9 +152,12 @@ export default function ReportPage() {
       icuNeeded,
       comments, // Include comments in the report
     };
-
-    if (socket.current) {
-      socket.current.emit('submit_report', reportData); // Emit report data to the backend
+    console.log("Emitting submit_report with data:", reportData);
+    if (socket.current && socket.current.connected) {
+      console.log("WebSocket is connected.");
+      socket.current.emit('submit_report', reportData);
+    } else {
+      console.error("WebSocket is not connected.");
     }
 
     Alert.alert('Success', 'Report submitted successfully!');
