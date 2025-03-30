@@ -4,6 +4,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine";
 import { io } from "socket.io-client";
+import axios from "axios"; // For API calls
+import { debounce } from "lodash";
 
 const ambulanceIcon = new L.Icon({
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -19,6 +21,30 @@ const MapComponent = React.memo(({ origin, setRouteInfo }) => {
   const mapRef = useRef(null);
   const routingControlRef = useRef(null);
 
+  // SVG for ambulance icon
+  const ambulanceSVG = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
+      <path d="M624 352h-16V243.9c0-12.7-5.1-24.9-14.1-33.9L494 110.1c-9-9-21.2-14.1-33.9-14.1H416V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48v320c0 26.5 21.5 48 48 48h16c0 53 43 96 96 96s96-43 96-96h128c0 53 43 96 96 96s96-43 96-96h48c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16zM160 464c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm144-248c0 4.4-3.6 8-8 8h-56v56c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8v-56h-56c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h56v-56c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v56h56c4.4 0 8 3.6 8 8v48zm176 248c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm80-208H416V144h44.1l99.9 99.9V256z"/>
+    </svg>
+  `);
+
+  const ambulanceIcon = new L.Icon({
+    iconUrl: `data:image/svg+xml,${ambulanceSVG}`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
+  });
+
+  const hospitalIcon = new L.Icon({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  const hospitalCoords = [13.0204181, 80.2058843]; // City Hospital coordinates
+
   useEffect(() => {
     if (!origin || !origin[0] || !origin[1]) {
       console.error("Invalid origin data:", origin);
@@ -33,23 +59,33 @@ const MapComponent = React.memo(({ origin, setRouteInfo }) => {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(mapRef.current);
 
+      // Add ambulance marker
+      L.marker(origin, { icon: ambulanceIcon }).addTo(mapRef.current).bindPopup("Ambulance Location");
+
       // Add hospital marker
-      L.marker(hospitalCoords, { icon: ambulanceIcon }).addTo(mapRef.current).bindPopup("City Hospital");
+      L.marker(hospitalCoords, { icon: hospitalIcon }).addTo(mapRef.current).bindPopup("City Hospital");
     }
 
     // Remove existing routing control if it exists
     if (routingControlRef.current) {
-      mapRef.current.removeControl(routingControlRef.current);
+      try {
+        mapRef.current.removeControl(routingControlRef.current);
+      } catch (error) {
+        console.warn("Error removing routing control:", error);
+      }
+      routingControlRef.current = null;
     }
 
     // Add routing control
     routingControlRef.current = L.Routing.control({
+      serviceUrl: "https://router.project-osrm.org/route/v1", // Use your own OSRM server for production
       waypoints: [L.latLng(origin[0], origin[1]), L.latLng(hospitalCoords[0], hospitalCoords[1])],
       routeWhileDragging: false,
-      show: false,
-      addWaypoints: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
+      show: false, // Hide the itinerary panel
+      addWaypoints: false, // Disable adding waypoints by clicking on the map
+      draggableWaypoints: false, // Disable dragging waypoints
+      fitSelectedRoutes: true, // Fit the map to the selected route
+      createMarker: () => null, // Prevent default markers
       lineOptions: {
         styles: [{ color: "blue", weight: 4 }],
       },
@@ -64,13 +100,18 @@ const MapComponent = React.memo(({ origin, setRouteInfo }) => {
       })
       .on("routingerror", (e) => {
         console.error("Routing error:", e);
+        alert("Unable to calculate route. Please try again later.");
       })
       .addTo(mapRef.current);
 
     return () => {
       // Cleanup routing control
       if (routingControlRef.current) {
-        mapRef.current.removeControl(routingControlRef.current);
+        try {
+         
+        } catch (error) {
+          console.warn("Error during cleanup of routing control:", error);
+        }
         routingControlRef.current = null;
       }
     };
@@ -78,7 +119,6 @@ const MapComponent = React.memo(({ origin, setRouteInfo }) => {
 
   return <div id="map" style={{ width: "100%", height: "400px" }}></div>;
 });
-  
 
 function AmbulanceData() {
   const [ambulances, setAmbulances] = useState([]); // Dynamic ambulance data
@@ -86,68 +126,67 @@ function AmbulanceData() {
   const [routeInfo, setRouteInfo] = useState({ distance: "", time: "" });
   const socketRef = useRef(null);
 
+  // Fetch initial ambulance data from the database
   useEffect(() => {
-    // Initialize WebSocket connection
-    socketRef.current = io("http://10.16.49.34:5000");
-
-    socketRef.current.on("connect", () => {
-      console.log("WebSocket connection established.");
-    });
-
-    socketRef.current.on("connect_error", (error) => {
-      console.error("WebSocket connection error:", error);
-    });
-
-    socketRef.current.on("disconnect", () => {
-      console.log("WebSocket connection disconnected.");
-    });
-
-    // Listen for location updates
-    socketRef.current.on("location_update", (location) => {
-      console.log("Location update received:", location);
-
-      if (location.hospid.toLowerCase() === "hosp001") {
-        setAmbulances((prevAmbulances) => {
-          const existingIndex = prevAmbulances.findIndex(
-            (amb) => amb.ambulance_id === location.ambulance_id
-          );
-
-          if (existingIndex !== -1) {
-            const updatedAmbulances = [...prevAmbulances];
-            updatedAmbulances[existingIndex] = { ...updatedAmbulances[existingIndex], ...location };
-            return updatedAmbulances;
-          } else {
-            return [...prevAmbulances, location];
-          }
-        });
+    let isMounted = true; // Track if the component is still mounted
+  
+    const fetchAmbulances = async () => {
+      try {
+        const response = await axios.get("/api/incoming_ambulances?hospid=HOSP001");
+        if (isMounted) {
+          console.log("Response received:", response.data);
+          setAmbulances(response.data.ambulances || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error fetching ambulances:", error);
+        }
       }
-    });
-
-    // Listen for new reports
-    socketRef.current.on("new_report", (report) => {
-      console.log("New report received:", report);
-
-      if (report.hospid === "HOSP001") {
-        setAmbulances((prevAmbulances) => {
-          const existingIndex = prevAmbulances.findIndex(
-            (amb) => amb.ambulance_id === report.ambulance_id
-          );
-
-          if (existingIndex !== -1) {
-            const updatedAmbulances = [...prevAmbulances];
-            updatedAmbulances[existingIndex] = { ...updatedAmbulances[existingIndex], ...report };
-            return updatedAmbulances;
-          } else {
-            return [...prevAmbulances, report];
-          }
-        });
-      }
-    });
-
+    };
+  
+    fetchAmbulances();
+  
     return () => {
-      socketRef.current.disconnect(); // Cleanup WebSocket connection
+      isMounted = false; // Cleanup on component unmount
     };
   }, []);
+
+  // Handle WebSocket connection for live updates
+  useEffect(() => {
+    if (selectedAmbulance) {
+      socketRef.current = io("http://10.16.49.34:5000");
+  
+      // Handle location updates
+      const handleLocationUpdate = debounce((updatedLocation) => {
+        if (updatedLocation.ambulance_id === selectedAmbulance.ambulance_id) {
+          setSelectedAmbulance((prev) => ({
+            ...prev,
+            ...updatedLocation,
+          }));
+        }
+      }, 5000);
+  
+      // Listen for location updates
+      socketRef.current.on("location_update", handleLocationUpdate);
+  
+      // Listen for report updates (e.g., severity, ICU needed, comments)
+      socketRef.current.on("new_report", (updatedReport) => {
+        if (updatedReport.ambulance_id === selectedAmbulance.ambulance_id) {
+          setSelectedAmbulance((prev) => ({
+            ...prev,
+            report: {
+              ...prev?.report,
+              ...updatedReport, // Merge the updated report fields
+            },
+          }));
+        }
+      });
+  
+      return () => {
+        socketRef.current.disconnect(); // Cleanup WebSocket connection
+      };
+    }
+  }, [selectedAmbulance]);
 
   const handleClosePopup = useCallback(() => setSelectedAmbulance(null), []);
 
@@ -182,14 +221,17 @@ function AmbulanceData() {
             <div
               key={index}
               onClick={() => setSelectedAmbulance(ambulance)}
-              className={`${getCardClass(ambulance.severity)} p-6 rounded-lg shadow-md cursor-pointer hover:bg-blue-200 transition`}
+              className={`${getCardClass(ambulance.report?.severity)} p-6 rounded-lg shadow-md cursor-pointer hover:bg-blue-200 transition`}
             >
               <div className="flex items-center gap-4">
                 <FaAmbulance className="text-blue-700 text-3xl" />
                 <div>
                   <h2 className="text-lg font-semibold">{ambulance.ambulance_id}</h2>
                   <p className="text-gray-600 flex items-center">
-                    <FaMapMarkerAlt className="mr-2" /> {ambulance.hospid}
+                    <FaMapMarkerAlt className="mr-2" /> {ambulance.latitude}, {ambulance.longitude}
+                  </p>
+                  <p className="text-gray-600 flex items-center">
+                    <FaExclamationTriangle className="mr-2" /> Severity: {ambulance.report?.severity || "N/A"}
                   </p>
                 </div>
               </div>
@@ -235,12 +277,12 @@ function AmbulanceData() {
                 <div className="p-5 space-y-4 text-center">
                   <div className="bg-white p-4 rounded-lg shadow-md">
                     <p className="text-gray-700 flex items-center justify-center mb-2">
-                      <FaExclamationTriangle className="mr-2" /> Severity: {selectedAmbulance.severity}
+                      <FaExclamationTriangle className="mr-2" /> Severity: {selectedAmbulance.report?.severity || "N/A"}
                     </p>
                   </div>
                   <div className="bg-white p-4 rounded-lg shadow-md">
                     <p className="text-gray-700 flex items-center justify-center mb-2">
-                      <FaProcedures className="mr-2" /> ICU Needed: {selectedAmbulance.icu_needed ? "Yes" : "No"}
+                      <FaProcedures className="mr-2" /> ICU Needed: {selectedAmbulance.report?.icu_needed || "N/A"}
                     </p>
                   </div>
                   <div className="bg-white p-4 rounded-lg shadow-md">
@@ -255,7 +297,7 @@ function AmbulanceData() {
                   </div>
                   <div className="bg-white p-4 rounded-lg shadow-md">
                     <p className="text-gray-700 flex items-center justify-center mb-2">
-                      Comments: {selectedAmbulance.comments}
+                      Comments: {selectedAmbulance.report?.comments || "N/A"}
                     </p>
                   </div>
                 </div>
