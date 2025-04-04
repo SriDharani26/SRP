@@ -31,7 +31,7 @@ export default function ReportPage() {
 
   useEffect(() => {
     // Initialize WebSocket connection
-    socket.current = io('http://10.16.49.34:5000');
+    socket.current = io('http://10.11.159.120:5000');
   
     // Log WebSocket connection status
     socket.current.on('connect', () => {

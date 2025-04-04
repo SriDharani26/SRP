@@ -17,7 +17,7 @@ export default function AlertsPage() {
   interface Note {
     Accidents: Accident[]; // Expecting an array of accidents
   }
-  const ambulanceid="A0237"
+  const ambulanceid="A0012"
   const [note, setNote] = useState<Note | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);

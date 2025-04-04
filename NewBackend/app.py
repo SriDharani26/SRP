@@ -167,7 +167,7 @@ def getAlert():
         # ambulance_id = data.get("ambulance_id")
         # Fetch all accidents related to the given Ambulance ID
         accidents = list(accident_collection.find(
-            {"Ambulance ID":"A0237"}, 
+            {"Ambulance ID":"A0012"}, 
             {"_id": 0, "Accident Type": 1, "Number of People Injured": 1, "Latitude": 1, "Longitude": 1}
         ))
         
@@ -251,13 +251,16 @@ def opting_icubeds():
         upsert=True  # Create document if hospital_id doesn't exist
     )
 
-    bed_field = "ICU Beds"
+    bed_field = "resources.ICU Beds.capacity"
+    occ_field = "resources.ICU Beds.occupied"
 
-    # Reduce the hospital's available resource count
+    # Update hospital's ICU Beds data: decrease capacity and increase occupied count
     db.Hospital_distribution.update_one(
         {"hospital_id": hospital_id},
-        {"$inc": {bed_field: -1}}  # Decrease the count by 1
+        {"$inc": {bed_field: -1, occ_field: +1}},  # Reduce capacity by 1 and increase occupied by 1
+        upsert=True
     )
+    
     return jsonify({"message": "got that"}), 200
 
 @app.route('/opting_general',methods=['POST'])
@@ -274,12 +277,15 @@ def opting_generalbeds():
         upsert=True  # Create document if hospital_id doesn't exist
     )
 
-    bed_field = "Non-ICU Beds"
+    
+    bed_field = "resources.Non-ICU Beds.capacity"
+    occ_field = "resources.Non-ICU Beds.occupied"
 
-    # Reduce the hospital's available resource count
+    # Update hospital's ICU Beds data: decrease capacity and increase occupied count
     db.Hospital_distribution.update_one(
         {"hospital_id": hospital_id},
-        {"$inc": {bed_field: -1}}  # Decrease the count by 1
+        {"$inc": {bed_field: -1, occ_field: +1}},  # Reduce capacity by 1 and increase occupied by 1
+        upsert=True
     )
     return jsonify({"message": "got that"}), 200
 

@@ -95,7 +95,7 @@ export default function Resource() {
           "Medicines": '',
           "Isolation Wards": ''
         });
-  
+        
         alert("Resources updated successfully!");
   
         // Refetch the updated chart data
@@ -109,6 +109,7 @@ export default function Resource() {
                 occupied: value.occupied,
               }));
               setChartData(formattedChartData);
+              console.log(formattedChartData);
             }
           });
       })

@@ -78,7 +78,7 @@ export default function HospitalAvailability() {
 
   const requestICU = async (hospitalId: any) => {
     try {
-      const ambulanceId = "A0237"; 
+      const ambulanceId = "A0012"; 
   
       const response = await db.post(`/opting_icu`, {
         ambulance_id: ambulanceId,
@@ -99,7 +99,7 @@ export default function HospitalAvailability() {
   
   const requestGeneral = async (hospitalId: any) => {
     try {
-      const ambulanceId = "A0237"; 
+      const ambulanceId = "A0012"; 
   
       const response = await db.post(`/opting_general`, {
         ambulance_id: ambulanceId,

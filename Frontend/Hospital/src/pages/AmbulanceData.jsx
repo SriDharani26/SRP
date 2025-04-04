@@ -100,7 +100,7 @@ const MapComponent = React.memo(({ origin, setRouteInfo }) => {
       })
       .on("routingerror", (e) => {
         console.error("Routing error:", e);
-        alert("Unable to calculate route. Please try again later.");
+        // alert("Unable to calculate route. Please try again later.");
       })
       .addTo(mapRef.current);
 
@@ -154,7 +154,7 @@ function AmbulanceData() {
   // Handle WebSocket connection for live updates
   useEffect(() => {
     if (selectedAmbulance) {
-      socketRef.current = io("http://10.16.49.34:5000");
+      socketRef.current = io("http://10.11.159.120:5000");
   
       // Handle location updates
       const handleLocationUpdate = debounce((updatedLocation) => {
