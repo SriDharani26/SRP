@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Text, ScrollView, View, Alert } from "react-native";
 import { Card, Button } from "react-native-paper";
+
 import axios from "axios";
 import { useRouter } from 'expo-router';
 
@@ -17,7 +18,7 @@ export default function AlertsPage() {
   interface Note {
     Accidents: Accident[]; // Expecting an array of accidents
   }
-  const ambulanceid="A0012"
+  const ambulanceid="A0284"
   const [note, setNote] = useState<Note | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);

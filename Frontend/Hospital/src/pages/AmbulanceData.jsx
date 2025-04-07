@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine";
 import { io } from "socket.io-client";
 import axios from "axios"; // For API calls
+import { BACKEND_WS_URL } from "../constants";
 import { debounce } from "lodash";
 
 const ambulanceIcon = new L.Icon({
@@ -154,7 +155,7 @@ function AmbulanceData() {
   // Handle WebSocket connection for live updates
   useEffect(() => {
     if (selectedAmbulance) {
-      socketRef.current = io("http://10.11.159.120:5000");
+      socketRef.current = io(BACKEND_WS_URL);
   
       // Handle location updates
       const handleLocationUpdate = debounce((updatedLocation) => {

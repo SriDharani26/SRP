@@ -3,6 +3,7 @@ import { StyleSheet, View, Alert, ScrollView, TouchableOpacity, Text, TextInput 
 import { Button, RadioButton } from 'react-native-paper';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
+import {BACKEND_WS_URL} from "@/constants/config"
 import { useLocalSearchParams } from 'expo-router';
 import { io } from 'socket.io-client';
 import {debounce} from 'lodash';
@@ -31,7 +32,7 @@ export default function ReportPage() {
 
   useEffect(() => {
     // Initialize WebSocket connection
-    socket.current = io('http://10.11.159.120:5000');
+    socket.current = io(BACKEND_WS_URL);
   
     // Log WebSocket connection status
     socket.current.on('connect', () => {

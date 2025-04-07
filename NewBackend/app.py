@@ -167,7 +167,7 @@ def getAlert():
         # ambulance_id = data.get("ambulance_id")
         # Fetch all accidents related to the given Ambulance ID
         accidents = list(accident_collection.find(
-            {"Ambulance ID":"A0012"}, 
+            {"Ambulance ID":"A0284"}, 
             {"_id": 0, "Accident Type": 1, "Number of People Injured": 1, "Latitude": 1, "Longitude": 1}
         ))
         
